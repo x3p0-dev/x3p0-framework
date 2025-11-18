@@ -20,7 +20,7 @@ use X3P0\Framework\Contracts\Bootable;
  * Base class that does the heavy lifting of bootstrapping an application while
  * letting subclasses handle the registration aspects specific to them.
  */
-abstract class Application
+abstract class Application implements Bootable
 {
 	/**
 	 * Custom namespace/prefix for WordPress hooks that can be defined in a
