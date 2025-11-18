@@ -37,22 +37,6 @@ final class ServiceContainer implements Container
 	/**
 	 * @inheritDoc
 	 */
-	public function bind(string $abstract, mixed $concrete = null, bool $shared = false): void
-	{
-		unset($this->instances[$abstract]);
-
-		// If no concrete is provided, use the abstract as concrete.
-		if ($concrete === null) {
-			$concrete = $abstract;
-		}
-
-		// Add the binding with its concrete and shared values.
-		$this->bindings[$abstract] = compact('concrete', 'shared');
-	}
-
-	/**
-	 * @inheritDoc
-	 */
 	public function transient(string $abstract, mixed $concrete = null): void
 	{
 		$this->bind($abstract, $concrete);
@@ -72,6 +56,23 @@ final class ServiceContainer implements Container
 	public function instance(string $abstract, mixed $instance): void
 	{
 		$this->instances[$abstract] = $instance;
+	}
+
+	/**
+	 * Bind an abstract to a concrete implementation. This is an internal
+	 * method. Use the `singleton()` or `transient()` methods instead.
+	 */
+	private function bind(string $abstract, mixed $concrete = null, bool $shared = false): void
+	{
+		unset($this->instances[$abstract]);
+
+		// If no concrete is provided, use the abstract as concrete.
+		if ($concrete === null) {
+			$concrete = $abstract;
+		}
+
+		// Add the binding with its concrete and shared values.
+		$this->bindings[$abstract] = compact('concrete', 'shared');
 	}
 
 	/**

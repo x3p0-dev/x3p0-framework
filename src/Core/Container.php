@@ -21,11 +21,6 @@ namespace X3P0\Framework\Core;
 interface Container
 {
 	/**
-	 * Bind an abstract to a concrete implementation.
-	 */
-	public function bind(string $abstract, mixed $concrete = null, bool $shared = false): void;
-
-	/**
 	 * Register a transient service (new instance each time).
 	 */
 	public function transient(string $abstract, mixed $concrete = null): void;
