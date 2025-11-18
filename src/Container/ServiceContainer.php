@@ -11,7 +11,7 @@
 
 declare(strict_types=1);
 
-namespace X3P0\Framework\Core;
+namespace X3P0\Framework\Container;
 
 use Closure;
 use Exception;

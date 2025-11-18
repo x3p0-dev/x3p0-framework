@@ -13,6 +13,8 @@ declare(strict_types=1);
 
 namespace X3P0\Framework\Core;
 
+use X3P0\Framework\Container\Container;
+
 /**
  * Service providers allow you to connect services to the application container.
  * This base class should be extended with at least the `register()` method for

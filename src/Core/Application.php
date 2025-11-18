@@ -14,6 +14,7 @@ declare(strict_types=1);
 namespace X3P0\Framework\Core;
 
 use InvalidArgumentException;
+use X3P0\Framework\Container\Container;
 use X3P0\Framework\Contracts\Bootable;
 
 /**

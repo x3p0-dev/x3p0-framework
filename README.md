@@ -131,7 +131,8 @@ Create a helper function to access your application instance:
 <?php
 namespace Your\Project;
 
-use X3P0\Framework\Core\{Application, ServiceContainer};
+use X3P0\Framework\Container\ServiceContainer;
+use X3P0\Framework\Core\Application;
 
 function plugin(): Application
 {
