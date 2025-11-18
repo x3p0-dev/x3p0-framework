@@ -3,7 +3,6 @@
 /**
  * Class registry interface.
  *
- * @package   X3P0\Framework
  * @author    Justin Tadlock <justintadlock@gmail.com>
  * @copyright Copyright (c) 2025, Justin Tadlock
  * @license   https://www.gnu.org/licenses/gpl-2.0.html GPL-2.0-or-later
