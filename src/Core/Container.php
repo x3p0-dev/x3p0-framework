@@ -43,7 +43,12 @@ interface Container
 	/**
 	 * Resolve a binding from the container.
 	 */
-	public function get(string $abstract, array $parameters = []): mixed;
+	public function get(string $abstract): mixed;
+
+	/**
+	 * Resolve a binding from the container with additional parameters.
+	 */
+	public function resolve(string $abstract, array $parameters = []): mixed;
 
 	/**
 	 * Instantiate a concrete instance.

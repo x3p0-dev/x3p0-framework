@@ -16,6 +16,9 @@ namespace PHPSTORM_META
 	// For get() method.
 	override(\X3P0\Framework\Core\Container::get(0), map(['' => '@']));
 
+	// For resolve() method.
+	override(\X3P0\Framework\Core\Container::resolve(0), map(['' => '@']));
+
 	// For make() method.
 	override(\X3P0\Framework\Core\Container::make(0), map(['' => '@']));
 }

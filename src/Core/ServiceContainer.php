@@ -78,7 +78,16 @@ final class ServiceContainer implements Container
 	 * @inheritDoc
 	 * @throws Exception
 	 */
-	public function get(string $abstract, array $parameters = []): mixed
+	public function get(string $abstract): mixed
+	{
+		return $this->resolve($abstract);
+	}
+
+	/**
+	 * @inheritDoc
+	 * @throws Exception
+	 */
+	public function resolve(string $abstract, array $parameters = []): mixed
 	{
 		// Return cached singleton if exists and no parameters provided.
 		if (isset($this->instances[$abstract]) && empty($parameters)) {
@@ -210,7 +219,7 @@ final class ServiceContainer implements Container
 
 			// If class is registered with the container, resolve it.
 			if ($this->has($className)) {
-				$dependencies[] = $this->get($className);
+				$dependencies[] = $this->resolve($className);
 				continue;
 			}
 
