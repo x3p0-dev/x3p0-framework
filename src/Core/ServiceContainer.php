@@ -59,8 +59,41 @@ final class ServiceContainer implements Container
 	}
 
 	/**
-	 * Bind an abstract to a concrete implementation. This is an internal
-	 * method. Use the `singleton()` or `transient()` methods instead.
+	 * @inheritDoc
+	 * @throws Exception
+	 */
+	public function make(string $abstract, array $parameters = []): object
+	{
+		return $this->resolve($abstract, $parameters);
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public function bound(string $abstract): bool
+	{
+		return isset($this->bindings[$abstract]) || isset($this->instances[$abstract]);
+	}
+
+	/**
+	 * @inheritDoc
+	 * @throws Exception
+	 */
+	public function get(string $id): mixed
+	{
+		return $this->resolve($id);
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public function has(string $id): bool
+	{
+		return $this->bound($id);
+	}
+
+	/**
+	 * Bind an abstract to a concrete implementation.
 	 */
 	private function bind(string $abstract, mixed $concrete = null, bool $shared = false): void
 	{
@@ -76,19 +109,10 @@ final class ServiceContainer implements Container
 	}
 
 	/**
-	 * @inheritDoc
+	 * Resolve a binding from the container with additional parameters.
 	 * @throws Exception
 	 */
-	public function get(string $abstract): mixed
-	{
-		return $this->resolve($abstract);
-	}
-
-	/**
-	 * @inheritDoc
-	 * @throws Exception
-	 */
-	public function resolve(string $abstract, array $parameters = []): mixed
+	private function resolve(string $abstract, array $parameters = []): mixed
 	{
 		// Return cached singleton if exists and no parameters provided.
 		if (isset($this->instances[$abstract]) && empty($parameters)) {
@@ -113,23 +137,6 @@ final class ServiceContainer implements Container
 		}
 
 		return $object;
-	}
-
-	/**
-	 * @inheritDoc
-	 * @throws Exception
-	 */
-	public function make(string $abstract, array $parameters = []): object
-	{
-		return $this->build($abstract, $parameters);
-	}
-
-	/**
-	 * @inheritDoc
-	 */
-	public function has(string $abstract): bool
-	{
-		return isset($this->bindings[$abstract]) || isset($this->instances[$abstract]);
 	}
 
 	/**
