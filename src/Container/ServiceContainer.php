@@ -116,9 +116,12 @@ final class ServiceContainer implements Container
 		// Resolve the service.
 		$concrete = $this->getConcrete($abstract);
 
-		// If we can't build an object, assume we should return the value.
+		// If we can't build an object, throw an exception.
 		if (! $this->isBuildable($concrete)) {
-			return $concrete;
+			throw new Exception(sprintf(
+				'Service %s is not buildable.',
+				$abstract
+			));
 		}
 
 		// Build the object.
@@ -242,9 +245,9 @@ final class ServiceContainer implements Container
 	{
 		return $param->isDefaultValueAvailable()
 			? $param->getDefaultValue()
-			: throw new Exception(esc_html(sprintf(
+			: throw new Exception(sprintf(
 				'Cannot resolve parameter %s.',
 				$param->getName()
-			)));
+			));
 	}
 }
