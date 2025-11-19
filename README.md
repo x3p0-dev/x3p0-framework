@@ -1,5 +1,7 @@
 # X3P0: Framework
 
+![Nova, a blue alien, as a construction worker wearing a toolbelt and holding a wrench in a city construction zone.](https://repository-images.githubusercontent.com/1098370533/fc172954-cd4e-4669-be63-ef92774fcbbf)
+
 A lightweight, modern dependency injection framework for WordPress plugins and themes. Built with PHP 8.1+, it provides a robust DI container and abstract application layer to help you write cleaner, more maintainable WordPress code.
 
 [![License](https://img.shields.io/badge/license-GPL--2.0--or--later-blue.svg)](LICENSE.md)
