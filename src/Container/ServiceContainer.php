@@ -138,8 +138,8 @@ final class ServiceContainer implements Container
 	 */
 	private function isShared(string $abstract): bool
 	{
-		return isset($this->bindings[$abstract])
-			&& $this->bindings[$abstract]['shared'] === true;
+		return isset($this->instances[$abstract])
+			|| ($this->bindings[$abstract]['shared'] ?? false);
 	}
 
 	/**
