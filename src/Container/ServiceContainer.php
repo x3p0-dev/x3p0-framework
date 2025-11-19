@@ -30,7 +30,7 @@ final class ServiceContainer implements Container
 	protected array $bindings = [];
 
 	/**
-	 * Stores registered single-instance services.
+	 * Stores registered instances and resolved singletons.
 	 */
 	protected array $instances = [];
 
@@ -96,22 +96,24 @@ final class ServiceContainer implements Container
 			$concrete = $abstract;
 		}
 
-		// Add the binding with its concrete and shared values.
+		// Add the service with its concrete and shared values.
 		$this->bindings[$abstract] = compact('concrete', 'shared');
 	}
 
 	/**
-	 * Resolve a binding from the container with additional parameters.
+	 * Resolve a service from the container with additional parameters.
 	 * @throws Exception
 	 */
 	private function resolve(string $abstract, array $parameters = []): mixed
 	{
-		// Return cached singleton if exists and no parameters provided.
-		if (isset($this->instances[$abstract]) && empty($parameters)) {
+		// Return cached instance if it exists and no parameters are
+		// provided. Note that singletons are cached as instances once
+		// they are resolved.
+		if (isset($this->instances[$abstract]) && $parameters === []) {
 			return $this->instances[$abstract];
 		}
 
-		// Resolve the binding.
+		// Resolve the service.
 		$concrete = $this->getConcrete($abstract);
 
 		// If we can't build an object, assume we should return the value.
@@ -120,15 +122,15 @@ final class ServiceContainer implements Container
 		}
 
 		// Build the object.
-		$object = $this->build($concrete, $parameters);
+		$service = $this->build($concrete, $parameters);
 
-		// Cache as an instance if this is a shared/singleton binding
-		// and no unique parameters have been passed in.
-		if ($this->isShared($abstract) && empty($parameters)) {
-			$this->instances[$abstract] = $object;
+		// If this is a shared/singleton service, cache as an instance
+		// if no parameters have been passed in.
+		if ($this->isShared($abstract) && $parameters === []) {
+			$this->instances[$abstract] = $service;
 		}
 
-		return $object;
+		return $service;
 	}
 
 	/**
