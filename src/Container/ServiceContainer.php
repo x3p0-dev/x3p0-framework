@@ -62,6 +62,15 @@ final class ServiceContainer implements Container
 	 * @inheritDoc
 	 * @throws Exception
 	 */
+	public function get(string $abstract): mixed
+	{
+		return $this->resolve($abstract);
+	}
+
+	/**
+	 * @inheritDoc
+	 * @throws Exception
+	 */
 	public function make(string $abstract, array $parameters = []): object
 	{
 		return $this->resolve($abstract, $parameters);
@@ -70,26 +79,9 @@ final class ServiceContainer implements Container
 	/**
 	 * @inheritDoc
 	 */
-	public function bound(string $abstract): bool
+	public function has(string $abstract): bool
 	{
 		return isset($this->bindings[$abstract]) || isset($this->instances[$abstract]);
-	}
-
-	/**
-	 * @inheritDoc
-	 * @throws Exception
-	 */
-	public function get(string $id): mixed
-	{
-		return $this->resolve($id);
-	}
-
-	/**
-	 * @inheritDoc
-	 */
-	public function has(string $id): bool
-	{
-		return $this->bound($id);
 	}
 
 	/**

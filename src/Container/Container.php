@@ -36,22 +36,17 @@ interface Container
 	public function instance(string $abstract, object $instance): void;
 
 	/**
-	 * Resolves a service from the container.
+	 * Resolve a service from the container.
+	 */
+	public function get(string $abstract): mixed;
+
+	/**
+	 * Resolves a service from the container with parameters.
 	 */
 	public function make(string $abstract, array $parameters = []): object;
 
 	/**
-	 * Determines if the registered service has been bound.
+	 * Check if a service is registered with the container.
 	 */
-	public function bound(string $abstract): bool;
-
-	/**
-	 * Resolve a binding from the container.
-	 */
-	public function get(string $id): mixed;
-
-	/**
-	 * Check if an abstract is bound.
-	 */
-	public function has(string $id): bool;
+	public function has(string $abstract): bool;
 }
