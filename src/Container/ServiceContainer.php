@@ -39,7 +39,12 @@ final class ServiceContainer implements Container
 	 */
 	public function transient(string $abstract, mixed $concrete = null): void
 	{
-		$this->bind($abstract, $concrete);
+		unset($this->instances[$abstract]);
+
+		$this->bindings[$abstract] = [
+			'concrete' => $concrete === null ? $abstract : $concrete,
+			'shared'   => false
+		];
 	}
 
 	/**
@@ -47,7 +52,12 @@ final class ServiceContainer implements Container
 	 */
 	public function singleton(string $abstract, mixed $concrete = null): void
 	{
-		$this->bind($abstract, $concrete, true);
+		unset($this->instances[$abstract]);
+
+		$this->bindings[$abstract] = [
+			'concrete' => $concrete === null ? $abstract : $concrete,
+			'shared'   => true
+		];
 	}
 
 	/**
@@ -82,22 +92,6 @@ final class ServiceContainer implements Container
 	public function has(string $abstract): bool
 	{
 		return isset($this->bindings[$abstract]) || isset($this->instances[$abstract]);
-	}
-
-	/**
-	 * Bind an abstract to a concrete implementation.
-	 */
-	private function bind(string $abstract, mixed $concrete = null, bool $shared = false): void
-	{
-		unset($this->instances[$abstract]);
-
-		// If no concrete is provided, use the abstract as concrete.
-		if ($concrete === null) {
-			$concrete = $abstract;
-		}
-
-		// Add the service with its concrete and shared values.
-		$this->bindings[$abstract] = compact('concrete', 'shared');
 	}
 
 	/**
@@ -155,7 +149,7 @@ final class ServiceContainer implements Container
 	}
 
 	/**
-	 * Get the concrete implementation for an abstract. If no binding
+	 * Get the concrete implementation for an abstract. If no service
 	 * exists, return the abstract itself for auto-resolution.
 	 */
 	private function getConcrete(string $abstract): mixed
