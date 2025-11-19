@@ -15,8 +15,8 @@ namespace X3P0\Framework\Container;
 
 /**
  * Defines the dependency injection container interface, which allows for
- * binding concrete implementations to abstracts. The container supports
- * transient, singleton, and single-instance bindings.
+ * binding concrete implementations to abstracts. The container supports the
+ * registration of transients, singletons, and instances.
  */
 interface Container
 {
