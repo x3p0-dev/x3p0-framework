@@ -31,5 +31,8 @@ abstract class ServiceProvider
 	/**
 	 * Registers one or more services with the container.
 	 */
-	abstract public function register(): void;
+	public function register(): void
+	{
+		// Default empty implementation - override if needed.
+	}
 }
