@@ -108,14 +108,12 @@ abstract class Application implements Bootable
 	}
 
 	/**
-	 * Boots all service providers that implement the `Bootable` interface.
+	 * Boots all registered service providers.
 	 */
 	public function boot(): void
 	{
 		foreach ($this->serviceProviders as $provider) {
-			if ($provider instanceof Bootable) {
-				$provider->boot();
-			}
+			$provider->boot();
 		}
 
 		// Allow third-party devs access to hook in after booting.
