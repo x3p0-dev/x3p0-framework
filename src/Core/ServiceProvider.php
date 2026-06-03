@@ -35,17 +35,33 @@ abstract class ServiceProvider implements Bootable
 	protected const BOOTABLE = [];
 
 	/**
+	 * A map of singletons to register. Numeric-keyed entries are self-bound
+	 * (the abstract is its own concrete); string-keyed entries bind an
+	 * abstract to a concrete class name. Bindings that require a closure
+	 * factory should be registered in an overridden `register()` method.
+	 *
+	 * @var  array<int|string, string> Singleton abstracts/concretes.
+	 * @todo Type hint with PHP 8.3+ requirement.
+	 */
+	protected const SINGLETONS = [];
+
+	/**
 	 * Accepts a container implementation for registering services.
 	 */
 	public function __construct(protected readonly Container $container)
 	{}
 
 	/**
-	 * Registers one or more services with the container.
+	 * Registers each singleton listed in the `SINGLETONS` constant. Override
+	 * and call `parent::register()` to add custom bindings.
 	 */
 	public function register(): void
 	{
-		// Default empty implementation - override if needed.
+		foreach (static::SINGLETONS as $abstract => $concrete) {
+			is_int($abstract)
+				? $this->container->singleton($concrete)
+				: $this->container->singleton($abstract, $concrete);
+		}
 	}
 
 	/**
