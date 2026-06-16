@@ -24,15 +24,6 @@ use X3P0\Framework\Contracts\Bootable;
 abstract class Application implements Bootable
 {
 	/**
-	 * Custom namespace/prefix for WordPress hooks that can be defined in a
-	 * subclass. If left undefined, hooks will not fire.
-	 *
-	 * @var  string
-	 * @todo Type hint with PHP 8.3+ requirement.
-	 */
-	protected const NAMESPACE = '';
-
-	/**
 	 * An array of service provider classnames to automatically register if
 	 * defined in a subclass.
 	 *
@@ -47,6 +38,13 @@ abstract class Application implements Bootable
 	private array $serviceProviders = [];
 
 	/**
+	 * Tracks which providers have already been booted so that `boot()` is
+	 * safe to call across multiple load phases (e.g., `plugins_loaded` and
+	 * `after_setup_theme`) without re-running a provider's boot logic.
+	 */
+	private array $bootedProviders = [];
+
+	/**
 	 * Sets up the initial object state.
 	 */
 	public function __construct(protected readonly Container $container)
@@ -54,11 +52,6 @@ abstract class Application implements Bootable
 		// Register default bindings and service providers.
 		$this->registerDefaultBindings();
 		$this->registerDefaultProviders();
-
-		// Allow third-party devs to register service providers.
-		if (static::NAMESPACE !== '') {
-			do_action(static::NAMESPACE . '/register', $this);
-		}
 	}
 
 	/**
@@ -108,17 +101,19 @@ abstract class Application implements Bootable
 	}
 
 	/**
-	 * Boots all registered service providers.
+	 * Boots all registered service providers that have not yet been booted.
+	 * Already-booted providers are skipped, making it safe to call this
+	 * method multiple times across different WordPress load phases.
 	 */
 	public function boot(): void
 	{
 		foreach ($this->serviceProviders as $provider) {
-			$provider->boot();
-		}
+			if (in_array($provider, $this->bootedProviders, true)) {
+				continue;
+			}
 
-		// Allow third-party devs access to hook in after booting.
-		if (static::NAMESPACE !== '') {
-			do_action(static::NAMESPACE . '/booted', $this);
+			$provider->boot();
+			$this->bootedProviders[] = $provider;
 		}
 	}
 }

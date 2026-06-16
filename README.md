@@ -12,7 +12,7 @@ A lightweight, modern dependency injection framework for WordPress plugins and t
 - **Modern Dependency Injection Container**: Manage your application's dependencies with ease
 - **Service Providers**: Organize your code with a clean, modular architecture
 - **Singleton and Transient Services**: Full control over service lifetimes
-- **WordPress-Optimized**: Built specifically for WordPress hooks and architecture
+- **WordPress-Friendly**: Designed to fit WordPress's load and boot lifecycle, while staying free of WordPress dependencies in its core
 - **Bootable Services**: Optional boot process for service initialization
 - **Lightweight**: Minimal overhead with maximum flexibility
 - **Type-Safe**: Full PHP 8.1+ type declarations for better IDE support
@@ -112,11 +112,6 @@ use X3P0\Framework\Core\Application;
 final class Plugin extends Application
 {
 	/**
-	 * Defines the plugin's namespace, used as a hook prefix.
-	 */
-	protected const NAMESPACE = 'your/plugin';
-
-	/**
 	 * Defines the plugin's service providers.
 	 */
 	protected const PROVIDERS = [
@@ -136,7 +131,7 @@ namespace Your\Project;
 use X3P0\Framework\Container\ServiceContainer;
 use X3P0\Framework\Core\Application;
 
-function plugin(): Application
+function plugin(): Plugin
 {
 	static $plugin;
 
@@ -149,6 +144,11 @@ function plugin(): Application
 ```
 
 ### 5. Initialize in Your Main Plugin File
+
+The framework doesn't fire any WordPress hooks of its own, so you decide when
+registration and booting happen. A typical setup instantiates the application
+on `plugins_loaded`, fires your own registration hook so third parties can add
+providers, then boots:
 
 ```php
 <?php
@@ -165,12 +165,34 @@ namespace Your\Project;
 // Autoload dependencies.
 require_once __DIR__ . '/vendor/autoload.php';
 
-// Initialize the plugin.
-add_action('plugins_loaded', plugin(...), 9999);
+add_action('plugins_loaded', function (): void {
+	// Let third-party code register additional providers.
+	do_action('your/project/register', plugin());
 
-// Boot registered services.
-add_action('plugins_loaded', fn() => plugin()->boot(), PHP_INT_MAX);
+	// Boot all registered providers.
+	plugin()->boot();
+}, -999);
 ```
+
+`boot()` is safe to call more than once: each provider is only booted a single
+time, so you can boot across multiple load phases. For example, a project might
+register some providers on `plugins_loaded` and others on `after_setup_theme`,
+booting each phase as it goes:
+
+```php
+add_action('plugins_loaded', function (): void {
+	do_action('your/project/register/plugin', plugin());
+	plugin()->boot();
+}, -999);
+
+add_action('after_setup_theme', function (): void {
+	do_action('your/project/register/theme', plugin());
+	plugin()->boot();
+}, -999);
+```
+
+Providers registered during the theme phase boot on the second `boot()` call;
+those already booted during the plugin phase are skipped.
 
 ## Core Concepts
 
@@ -214,8 +236,7 @@ Service providers are the central place to configure your container bindings. Th
 The application class serves as the central hub of your plugin/theme:
 
 - Manages service providers
-- Provides a hook namespace for WordPress integration
-- Orchestrates the boot process
+- Orchestrates the boot process (safe to call across multiple load phases)
 
 ## Advanced Usage
 
@@ -240,8 +261,6 @@ Register multiple service providers in your application:
 ```php
 final class App extends Application
 {
-	protected const NAMESPACE = 'your/plugin';
-
 	protected const PROVIDERS = [
 		CoreServiceProvider::class,
 		AdminServiceProvider::class,
