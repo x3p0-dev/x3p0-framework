@@ -42,6 +42,14 @@ final class ServiceContainer implements Container
 	protected array $tags = [];
 
 	/**
+	 * Tracks the abstracts currently being resolved so that circular
+	 * dependencies are detected instead of recursing into a stack overflow.
+	 *
+	 * @var array<string>
+	 */
+	private array $buildStack = [];
+
+	/**
 	 * @inheritDoc
 	 */
 	public function transient(string $abstract, mixed $concrete = null): void
@@ -136,36 +144,56 @@ final class ServiceContainer implements Container
 			return $this->instances[$abstract];
 		}
 
-		// Resolve the service.
-		$concrete = $this->getConcrete($abstract);
+		// Detect circular dependencies before recursing any further.
+		if (in_array($abstract, $this->buildStack, true)) {
+			throw new ContainerException(sprintf(
+				'Circular dependency detected while resolving "%s": %s.',
+				$abstract,
+				implode(' -> ', [...$this->buildStack, $abstract])
+			));
+		}
 
-		// If we can't build an object, throw an exception. Distinguish
-		// between an unknown identifier and a registered-but-unbuildable
-		// binding so consumers can handle each case differently.
-		if (! $this->isBuildable($concrete)) {
-			if ($this->has($abstract)) {
-				throw new ContainerException(sprintf(
-					'Service "%s" is registered but its bound concrete cannot be built.',
+		// Track this abstract for the duration of the build so nested
+		// resolutions can detect a cycle back to it.
+		$this->buildStack[] = $abstract;
+
+		try {
+			// Resolve the service.
+			$concrete = $this->getConcrete($abstract);
+
+			// If we can't build an object, throw an exception.
+			// Distinguish between an unknown identifier and a
+			// registered-but-unbuildable binding so consumers can
+			// handle each case differently.
+			if (! $this->isBuildable($concrete)) {
+				if ($this->has($abstract)) {
+					throw new ContainerException(sprintf(
+						'Service "%s" is registered but its bound concrete cannot be built.',
+						$abstract
+					));
+				}
+
+				throw new NotFoundException(sprintf(
+					'Service "%s" is not registered and could not be resolved.',
 					$abstract
 				));
 			}
 
-			throw new NotFoundException(sprintf(
-				'Service "%s" is not registered and could not be resolved.',
-				$abstract
-			));
+			// Build the object.
+			$service = $this->build($concrete, $parameters);
+
+			// If this is a shared/singleton service, cache as an
+			// instance if no parameters have been passed in.
+			if ($this->isShared($abstract) && $parameters === []) {
+				$this->instances[$abstract] = $service;
+			}
+
+			return $service;
+		} finally {
+			// Always pop, even on failure, so a thrown-and-caught
+			// resolution does not corrupt the stack for later calls.
+			array_pop($this->buildStack);
 		}
-
-		// Build the object.
-		$service = $this->build($concrete, $parameters);
-
-		// If this is a shared/singleton service, cache as an instance
-		// if no parameters have been passed in.
-		if ($this->isShared($abstract) && $parameters === []) {
-			$this->instances[$abstract] = $service;
-		}
-
-		return $service;
 	}
 
 	/**
