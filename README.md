@@ -231,6 +231,71 @@ Service providers are the central place to configure your container bindings. Th
 - `register()`: Register bindings in the container
 - `boot()`: Execute bootstrapping code (optional, requires implementing `Bootable`)
 
+### Tagging
+
+Tagging groups related bindings under a shared label so they can be resolved
+together. This is useful for any collection of like services — blocks, widgets,
+Customizer panels, REST controllers, CLI commands — where you'd otherwise have
+to maintain a master list of every class.
+
+Assign abstracts to a tag with `tag()` (a single abstract or an array), then
+resolve them all with `tagged()`:
+
+```php
+$this->container->tag([AlertBlock::class, CalloutBlock::class], 'theme.blocks');
+
+foreach ($this->container->tagged('theme.blocks') as $block) {
+	$block->register();
+}
+```
+
+Tagged abstracts are resolved through the container like any other service, so
+singletons stay shared and unbound classes are auto-wired. An unknown tag
+resolves to an empty array.
+
+Service providers can declare tags up front with the `TAGS` constant, which maps
+each tag name to its list of abstracts:
+
+```php
+final class BlockServiceProvider extends ServiceProvider
+{
+	protected const SINGLETONS = [
+		AlertBlock::class,
+		CalloutBlock::class
+	];
+
+	protected const TAGS = [
+		'theme.blocks' => [
+			AlertBlock::class,
+			CalloutBlock::class
+		]
+	];
+
+	public function boot(): void
+	{
+		add_action('init', function (): void {
+			foreach ($this->container->tagged('theme.blocks') as $block) {
+				$block->register();
+			}
+		});
+	}
+}
+```
+
+Because tags accumulate, different providers — or third-party code hooking your
+registration action — can contribute to the same tag without editing the
+provider that consumes it:
+
+```php
+add_action('your/project/register', function ($app): void {
+	$app->container()->singleton(TestimonialBlock::class);
+	$app->container()->tag(TestimonialBlock::class, 'theme.blocks');
+});
+```
+
+The consuming `tagged('theme.blocks')` loop picks up the added block
+automatically.
+
 ### The Application Class
 
 The application class serves as the central hub of your plugin/theme:

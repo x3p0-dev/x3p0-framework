@@ -54,4 +54,18 @@ interface Container
 	 * Check if a service is registered with the container.
 	 */
 	public function has(string $abstract): bool;
+
+	/**
+	 * Assign one or more abstracts to a tag so they can be resolved together.
+	 *
+	 * @param string|array<string> $abstracts
+	 */
+	public function tag(string|array $abstracts, string $tag): void;
+
+	/**
+	 * Resolve every abstract assigned to the given tag.
+	 *
+	 * @return array<object>
+	 */
+	public function tagged(string $tag): array;
 }

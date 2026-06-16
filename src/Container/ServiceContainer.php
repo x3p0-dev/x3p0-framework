@@ -35,6 +35,13 @@ final class ServiceContainer implements Container
 	protected array $instances = [];
 
 	/**
+	 * Maps tag names to the list of abstracts assigned to them.
+	 *
+	 * @var array<string, array<string>>
+	 */
+	protected array $tags = [];
+
+	/**
 	 * @inheritDoc
 	 */
 	public function transient(string $abstract, mixed $concrete = null): void
@@ -92,6 +99,28 @@ final class ServiceContainer implements Container
 	public function has(string $abstract): bool
 	{
 		return isset($this->bindings[$abstract]) || isset($this->instances[$abstract]);
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public function tag(string|array $abstracts, string $tag): void
+	{
+		foreach ((array) $abstracts as $abstract) {
+			$this->tags[$tag][] = $abstract;
+		}
+	}
+
+	/**
+	 * @inheritDoc
+	 * @throws Exception
+	 */
+	public function tagged(string $tag): array
+	{
+		return array_map(
+			fn (string $abstract): mixed => $this->resolve($abstract),
+			$this->tags[$tag] ?? []
+		);
 	}
 
 	/**

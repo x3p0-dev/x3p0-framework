@@ -46,14 +46,25 @@ abstract class ServiceProvider implements Bootable
 	protected const SINGLETONS = [];
 
 	/**
+	 * A map of tag names to the list of abstracts assigned to each tag. The
+	 * tagged abstracts are resolvable together via the container's `tagged()`
+	 * method.
+	 *
+	 * @var  array<string, array<string>> Tag names mapped to abstracts.
+	 * @todo Type hint with PHP 8.3+ requirement.
+	 */
+	protected const TAGS = [];
+
+	/**
 	 * Accepts a container implementation for registering services.
 	 */
 	public function __construct(protected readonly Container $container)
 	{}
 
 	/**
-	 * Registers each singleton listed in the `SINGLETONS` constant. Override
-	 * and call `parent::register()` to add custom bindings.
+	 * Registers each singleton listed in the `SINGLETONS` constant and assigns
+	 * each tag listed in the `TAGS` constant. Override and call
+	 * `parent::register()` to add custom bindings.
 	 */
 	public function register(): void
 	{
@@ -61,6 +72,10 @@ abstract class ServiceProvider implements Bootable
 			is_int($abstract)
 				? $this->container->singleton($concrete)
 				: $this->container->singleton($abstract, $concrete);
+		}
+
+		foreach (static::TAGS as $tag => $abstracts) {
+			$this->container->tag($abstracts, $tag);
 		}
 	}
 
