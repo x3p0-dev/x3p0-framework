@@ -31,9 +31,9 @@ interface Container
 	public function singleton(string $abstract, mixed $concrete = null): void;
 
 	/**
-	 * Register an existing instance as a singleton.
+	 * Register an existing value as a singleton.
 	 */
-	public function instance(string $abstract, object $instance): void;
+	public function instance(string $abstract, mixed $instance): void;
 
 	/**
 	 * Resolve a service from the container.

@@ -98,7 +98,7 @@ final class ServiceContainer implements Container
 	 */
 	public function has(string $abstract): bool
 	{
-		return isset($this->bindings[$abstract]) || isset($this->instances[$abstract]);
+		return isset($this->bindings[$abstract]) || array_key_exists($abstract, $this->instances);
 	}
 
 	/**
@@ -132,7 +132,7 @@ final class ServiceContainer implements Container
 		// Return cached instance if it exists and no parameters are
 		// provided. Note that singletons are cached as instances once
 		// they are resolved.
-		if (isset($this->instances[$abstract]) && $parameters === []) {
+		if (array_key_exists($abstract, $this->instances) && $parameters === []) {
 			return $this->instances[$abstract];
 		}
 
@@ -164,7 +164,7 @@ final class ServiceContainer implements Container
 	 */
 	private function isShared(string $abstract): bool
 	{
-		return isset($this->instances[$abstract])
+		return array_key_exists($abstract, $this->instances)
 			|| ($this->bindings[$abstract]['shared'] ?? false);
 	}
 
