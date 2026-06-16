@@ -14,10 +14,12 @@ declare(strict_types=1);
 namespace X3P0\Framework\Container;
 
 use Closure;
+use ReflectionAttribute;
 use ReflectionClass;
 use ReflectionException;
 use ReflectionNamedType;
 use ReflectionParameter;
+use X3P0\Framework\Container\Attributes\ContextualAttribute;
 
 /**
  * Implementation of the dependency injection container.
@@ -268,6 +270,18 @@ final class ServiceContainer implements Container
 			// Use provided parameter if available
 			if (array_key_exists($name, $providedParams)) {
 				$dependencies[] = $providedParams[$name];
+				continue;
+			}
+
+			// A contextual attribute on the parameter resolves its
+			// own value and takes precedence over type-based autowiring.
+			$contextual = $param->getAttributes(
+				ContextualAttribute::class,
+				ReflectionAttribute::IS_INSTANCEOF
+			);
+
+			if ($contextual !== []) {
+				$dependencies[] = $contextual[0]->newInstance()->resolve($this);
 				continue;
 			}
 
