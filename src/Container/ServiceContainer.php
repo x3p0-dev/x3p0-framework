@@ -14,8 +14,8 @@ declare(strict_types=1);
 namespace X3P0\Framework\Container;
 
 use Closure;
-use Exception;
 use ReflectionClass;
+use ReflectionException;
 use ReflectionNamedType;
 use ReflectionParameter;
 
@@ -77,7 +77,7 @@ final class ServiceContainer implements Container
 
 	/**
 	 * @inheritDoc
-	 * @throws Exception
+	 * @throws ContainerException|ReflectionException
 	 */
 	public function get(string $abstract): mixed
 	{
@@ -86,7 +86,7 @@ final class ServiceContainer implements Container
 
 	/**
 	 * @inheritDoc
-	 * @throws Exception
+	 * @throws ContainerException|ReflectionException
 	 */
 	public function make(string $abstract, array $parameters = []): object
 	{
@@ -113,7 +113,7 @@ final class ServiceContainer implements Container
 
 	/**
 	 * @inheritDoc
-	 * @throws Exception
+	 * @throws ContainerException|ReflectionException
 	 */
 	public function tagged(string $tag): array
 	{
@@ -125,7 +125,7 @@ final class ServiceContainer implements Container
 
 	/**
 	 * Resolve a service from the container with additional parameters.
-	 * @throws Exception
+	 * @throws ContainerException|ReflectionException
 	 */
 	private function resolve(string $abstract, array $parameters = []): mixed
 	{
@@ -139,10 +139,19 @@ final class ServiceContainer implements Container
 		// Resolve the service.
 		$concrete = $this->getConcrete($abstract);
 
-		// If we can't build an object, throw an exception.
+		// If we can't build an object, throw an exception. Distinguish
+		// between an unknown identifier and a registered-but-unbuildable
+		// binding so consumers can handle each case differently.
 		if (! $this->isBuildable($concrete)) {
-			throw new Exception(sprintf(
-				'Service %s is not buildable.',
+			if ($this->has($abstract)) {
+				throw new ContainerException(sprintf(
+					'Service "%s" is registered but its bound concrete cannot be built.',
+					$abstract
+				));
+			}
+
+			throw new NotFoundException(sprintf(
+				'Service "%s" is not registered and could not be resolved.',
 				$abstract
 			));
 		}
@@ -190,7 +199,7 @@ final class ServiceContainer implements Container
 
 	/**
 	 * Build an instance of the given concrete.
-	 * @throws Exception
+	 * @throws ContainerException|ReflectionException
 	 */
 	private function build(Closure|string $concrete, array $parameters = []): object
 	{
@@ -219,7 +228,7 @@ final class ServiceContainer implements Container
 
 	/**
 	 * Resolve constructor dependencies.
-	 * @throws Exception
+	 * @throws ContainerException|ReflectionException
 	 */
 	private function resolveDependencies(array $params, array $providedParams): array
 	{
@@ -236,41 +245,56 @@ final class ServiceContainer implements Container
 
 			$type = $param->getType();
 
-			// Handle anything that is not a named or built-in type.
-			if (! $type instanceof ReflectionNamedType || $type->isBuiltin()) {
-				$dependencies[] = $this->resolveNonTyped($param);
-				continue;
+			// Only a single, non-built-in named type (a class or
+			// interface) can be autowired. Try to resolve it from
+			// the container or build it directly. Anything
+			// unresolvable falls through to the fallback.
+			if ($type instanceof ReflectionNamedType && ! $type->isBuiltin()) {
+				$className = $type->getName();
+
+				if ($this->has($className)) {
+					$dependencies[] = $this->resolve($className);
+					continue;
+				}
+
+				if (class_exists($className)) {
+					$dependencies[] = $this->make($className);
+					continue;
+				}
 			}
 
-			// Resolve typed dependency.
-			$className = $type->getName();
-
-			// If class is registered with the container, resolve it.
-			if ($this->has($className)) {
-				$dependencies[] = $this->resolve($className);
-				continue;
-			}
-
-			// If the class exists, resolve it.
-			if (class_exists($className)) {
-				$dependencies[] = $this->make($className);
-			}
+			// Untyped, built-in, union, or intersection types, as
+			// well as unresolvable class types, cannot be autowired.
+			// Fall back to a default value, `null` when the
+			// parameter is nullable, or fail.
+			$dependencies[] = $this->resolveFallback($param);
 		}
 
 		return $dependencies;
 	}
 
 	/**
-	 * Resolve a non-typed or built-in typed parameter.
-	 * @throws Exception
+	 * Resolve a parameter that cannot be autowired by falling back to its
+	 * default value or `null` when the signature permits it.
+	 * @throws ContainerException
 	 */
-	private function resolveNonTyped(ReflectionParameter $param): mixed
+	private function resolveFallback(ReflectionParameter $param): mixed
 	{
-		return $param->isDefaultValueAvailable()
-			? $param->getDefaultValue()
-			: throw new Exception(sprintf(
-				'Cannot resolve parameter %s.',
-				$param->getName()
-			));
+		if ($param->isDefaultValueAvailable()) {
+			return $param->getDefaultValue();
+		}
+
+		$type = $param->getType();
+
+		if ($type?->allowsNull()) {
+			return null;
+		}
+
+		throw new ContainerException(sprintf(
+			'Unresolvable dependency: parameter "$%s"%s in %s could not be resolved.',
+			$param->getName(),
+			$type ? sprintf(' of type %s', $type) : '',
+			$param->getDeclaringClass()?->getName() ?? 'an unknown class'
+		));
 	}
 }
