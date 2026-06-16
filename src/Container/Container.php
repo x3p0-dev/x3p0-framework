@@ -42,6 +42,11 @@ interface Container
 
 	/**
 	 * Resolves a service from the container with parameters.
+	 *
+	 * @template T of object
+	 * @param    class-string<T>      $abstract
+	 * @param    array<string, mixed> $parameters
+	 * @return   T
 	 */
 	public function make(string $abstract, array $parameters = []): object;
 
