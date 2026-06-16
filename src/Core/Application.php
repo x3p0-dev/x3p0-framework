@@ -81,7 +81,10 @@ abstract class Application implements Bootable
 	}
 
 	/**
-	 * Register a service provider with the application.
+	 * Register a service provider with the application. A provider may be
+	 * passed as an instance or as a class name. Class names are resolved
+	 * through the container, so providers can type-hint their own
+	 * dependencies in the constructor and have them auto-wired.
 	 */
 	public function register(ServiceProvider|string $provider): void
 	{
@@ -93,7 +96,7 @@ abstract class Application implements Bootable
 				));
 			}
 
-			$provider = new $provider($this->container);
+			$provider = $this->container->make($provider);
 		}
 
 		$provider->register();

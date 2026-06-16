@@ -286,6 +286,33 @@ class MyService
 $this->container->singleton(MyService::class);
 ```
 
+### Service Provider Dependencies
+
+Providers registered by class name are resolved through the container, so they
+can declare their own dependencies in the constructor and have them auto-wired.
+Accept the `Container` and pass it to the parent, then add whatever else you
+need:
+
+```php
+use X3P0\Framework\Container\Container;
+use X3P0\Framework\Core\ServiceProvider;
+
+final class YourServiceProvider extends ServiceProvider
+{
+	public function __construct(Container $container, private Logger $logger)
+	{
+		parent::__construct($container);
+	}
+
+	public function register(): void
+	{
+		// $this->logger is available here.
+	}
+}
+```
+
+Dependencies must be resolvable by the time the provider is registered.
+
 ## Best Practices
 
 ### 1. Keep Service Providers Focused
