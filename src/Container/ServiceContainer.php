@@ -20,6 +20,7 @@ use ReflectionException;
 use ReflectionNamedType;
 use ReflectionParameter;
 use X3P0\Framework\Container\Attributes\ContextualAttribute;
+use X3P0\Framework\Container\Attributes\Singleton;
 
 /**
  * Implementation of the dependency injection container.
@@ -50,6 +51,14 @@ final class ServiceContainer implements Container
 	 * @var array<string>
 	 */
 	private array $buildStack = [];
+
+	/**
+	 * Memoizes whether a concrete class declares the `#[Singleton]` attribute
+	 * so the class is only reflected for it once.
+	 *
+	 * @var array<string, bool>
+	 */
+	private array $singletonAttributeCache = [];
 
 	/**
 	 * @inheritDoc
@@ -184,9 +193,17 @@ final class ServiceContainer implements Container
 			// Build the object.
 			$service = $this->build($concrete, $parameters);
 
-			// If this is a shared/singleton service, cache as an
-			// instance if no parameters have been passed in.
-			if ($this->isShared($abstract) && $parameters === []) {
+			// Decide whether to cache the instance. Explicit bindings
+			// take precedence; for autowired classes (those with no
+			// binding), the `#[Singleton]` attribute opts the class into
+			// singleton lifetime. Parameterized builds are never cached.
+			$shared = $this->isShared($abstract);
+
+			if (! isset($this->bindings[$abstract])) {
+				$shared = $shared || $this->declaresSingleton($concrete);
+			}
+
+			if ($shared && $parameters === []) {
 				$this->instances[$abstract] = $service;
 			}
 
@@ -205,6 +222,21 @@ final class ServiceContainer implements Container
 	{
 		return array_key_exists($abstract, $this->instances)
 			|| ($this->bindings[$abstract]['shared'] ?? false);
+	}
+
+	/**
+	 * Determine whether a concrete class opts into singleton lifetime via the
+	 * `#[Singleton]` attribute. Results are memoized per class name to avoid
+	 * reflecting the same class more than once.
+	 */
+	private function declaresSingleton(mixed $concrete): bool
+	{
+		if (! is_string($concrete) || ! class_exists($concrete)) {
+			return false;
+		}
+
+		return $this->singletonAttributeCache[$concrete] ??=
+			(new ReflectionClass($concrete))->getAttributes(Singleton::class) !== [];
 	}
 
 	/**
