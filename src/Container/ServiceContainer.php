@@ -17,6 +17,9 @@ use Closure;
 use ReflectionAttribute;
 use ReflectionClass;
 use ReflectionException;
+use ReflectionFunction;
+use ReflectionFunctionAbstract;
+use ReflectionMethod;
 use ReflectionNamedType;
 use ReflectionParameter;
 use X3P0\Framework\Container\Attributes\ContextualAttribute;
@@ -110,6 +113,22 @@ final class ServiceContainer implements Container
 	public function make(string $abstract, array $parameters = []): object
 	{
 		return $this->resolve($abstract, $parameters);
+	}
+
+	/**
+	 * @inheritDoc
+	 * @throws ContainerException|ReflectionException
+	 */
+	public function call(callable|array $callback, array $parameters = []): mixed
+	{
+		[$reflector, $invokable] = $this->reflectCallback($callback);
+
+		$args = $this->resolveDependencies(
+			$reflector->getParameters(),
+			$parameters
+		);
+
+		return $invokable(...$args);
 	}
 
 	/**
@@ -286,6 +305,60 @@ final class ServiceContainer implements Container
 			$constructor->getParameters(),
 			$parameters
 		));
+	}
+
+	/**
+	 * Reflect a callable into its parameter source and an invokable form.
+	 * A `[class-string, 'method']` pair (or a non-static method written as
+	 * `'Class::method'`) has its object resolved from the container first so
+	 * the instance is autowired before the method is invoked. Methods are
+	 * bound via closures so non-public members can be called.
+	 *
+	 * @param  callable|array{0: object|string, 1: string} $callback
+	 * @return array{0: ReflectionFunctionAbstract, 1: callable}
+	 * @throws ContainerException|ReflectionException
+	 */
+	private function reflectCallback(callable|array $callback): array
+	{
+		// `[$objectOrClass, 'method']`
+		if (is_array($callback)) {
+			[$target, $method] = $callback;
+			$reflector = new ReflectionMethod($target, $method);
+
+			// Static methods need no instance.
+			if ($reflector->isStatic()) {
+				return [$reflector, $reflector->getClosure()];
+			}
+
+			$object = is_object($target) ? $target : $this->resolve($target);
+
+			return [$reflector, $reflector->getClosure($object)];
+		}
+
+		// `'Class::method'`
+		if (is_string($callback) && str_contains($callback, '::')) {
+			$reflector = new ReflectionMethod($callback);
+
+			if ($reflector->isStatic()) {
+				return [$reflector, $callback];
+			}
+
+			// A non-static method named in static form still needs an
+			// instance, so resolve its declaring class.
+			$object = $this->resolve($reflector->getDeclaringClass()->getName());
+
+			return [$reflector, $reflector->getClosure($object)];
+		}
+
+		// Invokable object (anything but a closure).
+		if (is_object($callback) && ! $callback instanceof Closure) {
+			return [new ReflectionMethod($callback, '__invoke'), $callback];
+		}
+
+		// Closure or function name.
+		$closure = $callback(...);
+
+		return [new ReflectionFunction($closure), $closure];
 	}
 
 	/**

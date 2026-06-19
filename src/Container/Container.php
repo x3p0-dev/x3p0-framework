@@ -51,6 +51,18 @@ interface Container
 	public function make(string $abstract, array $parameters = []): object;
 
 	/**
+	 * Invoke a callable, resolving its parameters from the container.
+	 * Values in `$parameters` are matched by name and take precedence over
+	 * type-based resolution. The array form of `$callback` accepts a
+	 * `[class-string, 'method']` pair, whose object is resolved from the
+	 * container before the method is invoked.
+	 *
+	 * @param callable|array{0: object|string, 1: string} $callback
+	 * @param array<string, mixed>                        $parameters
+	 */
+	public function call(callable|array $callback, array $parameters = []): mixed;
+
+	/**
 	 * Check if a service is registered with the container.
 	 */
 	public function has(string $abstract): bool;
