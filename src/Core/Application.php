@@ -33,7 +33,10 @@ abstract class Application implements Bootable
 	protected const PROVIDERS = [];
 
 	/**
-	 * Stores an array of the registered service providers.
+	 * Stores the registered service providers, keyed by class name so that
+	 * the same provider is never registered more than once.
+	 *
+	 * @var array<string, ServiceProvider>
 	 */
 	private array $serviceProviders = [];
 
@@ -88,19 +91,31 @@ abstract class Application implements Bootable
 	 */
 	public function register(ServiceProvider|string $provider): void
 	{
-		if (is_string($provider)) {
-			if (! is_subclass_of($provider, ServiceProvider::class)) {
-				throw new InvalidArgumentException(sprintf(
-					'Provider must be a %s class',
-					ServiceProvider::class
-				));
-			}
+		if (is_string($provider) && ! is_subclass_of($provider, ServiceProvider::class)) {
+			throw new InvalidArgumentException(sprintf(
+				'Provider must be a %s class',
+				ServiceProvider::class
+			));
+		}
 
+		// Determine the provider class up front so a duplicate can be
+		// skipped without resolving it from the container.
+		$class = is_string($provider) ? $provider : $provider::class;
+
+		// Skip if a provider of this class is already registered, so the
+		// same provider added via multiple paths only registers once.
+		if (isset($this->serviceProviders[$class])) {
+			return;
+		}
+
+		// Resolve a class-name provider through the container, so providers
+		// can type-hint their own dependencies and have them auto-wired.
+		if (is_string($provider)) {
 			$provider = $this->container->make($provider);
 		}
 
 		$provider->register();
-		$this->serviceProviders[] = $provider;
+		$this->serviceProviders[$class] = $provider;
 	}
 
 	/**
