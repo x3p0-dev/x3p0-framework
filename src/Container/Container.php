@@ -16,9 +16,11 @@ namespace X3P0\Framework\Container;
 use Closure;
 
 /**
- * Defines the dependency injection container interface, which allows for
- * binding concrete implementations to abstracts. The container supports the
- * registration of transients, singletons, and instances.
+ * Defines the dependency injection container interface. It binds concrete
+ * implementations to abstracts — as transients, singletons, or existing
+ * instances — and autowires dependencies when resolving. It also supports
+ * tagging, deferred resolution, and lifecycle hooks (`resolving()`,
+ * `extend()`) for observing and decorating resolved services.
  */
 interface Container
 {
@@ -33,17 +35,23 @@ interface Container
 	public function singleton(string $abstract, mixed $concrete = null): void;
 
 	/**
-	 * Register an existing value as a singleton.
+	 * Register an existing value as a singleton. The value is stored and
+	 * returned as-is; it is never built or autowired by the container.
 	 */
 	public function instance(string $abstract, mixed $instance): void;
 
 	/**
-	 * Resolve a service from the container.
+	 * Resolve a service from the container by its identifier, returning the
+	 * bound value or an autowired instance. Use `make()` to pass constructor
+	 * overrides or for a guaranteed object return.
 	 */
 	public function get(string $abstract): mixed;
 
 	/**
-	 * Resolves a service from the container with parameters.
+	 * Resolve a class from the container, optionally overriding constructor
+	 * parameters. Values in `$parameters` are matched by name and take
+	 * precedence over type-based autowiring; remaining parameters are resolved
+	 * from the container. A parameterized resolution is never cached.
 	 *
 	 * @template T of object
 	 * @param    class-string<T>      $abstract
@@ -77,11 +85,11 @@ interface Container
 	public function defer(string $abstract): Closure;
 
 	/**
-	 * Register a callback fired after the given abstract is built, before it
-	 * is returned. The callback receives the resolved instance and the
-	 * container, and is expected to mutate the instance in place. Callbacks
-	 * run once per build, so a resolved singleton is only observed the first
-	 * time it is created.
+	 * Register a callback run after the given abstract is built, before it is
+	 * returned. The callback receives the resolved instance and the container,
+	 * and is expected to mutate the instance in place. Callbacks run once per
+	 * build, so a resolved singleton is only observed the first time it is
+	 * created.
 	 *
 	 * @param Closure(object, Container): void $callback
 	 */
