@@ -127,11 +127,27 @@ interface Container
 	public function has(string $abstract): bool;
 
 	/**
+	 * Forget a resolved singleton or registered instance so the next
+	 * resolution rebuilds it. The binding and any `resolving()`/`extend()`
+	 * hooks are left in place and re-applied on the next build.
+	 */
+	public function forgetInstance(string $abstract): void;
+
+	/**
 	 * Assign one or more abstracts to a tag so they can be resolved together.
+	 * Abstracts already assigned to the tag are ignored, so a tag never holds
+	 * duplicates.
 	 *
 	 * @param string|array<string> $abstracts
 	 */
 	public function tag(string|array $abstracts, string $tag): void;
+
+	/**
+	 * Remove one or more abstracts from a tag, leaving the rest in place.
+	 *
+	 * @param string|array<string> $abstracts
+	 */
+	public function untag(string|array $abstracts, string $tag): void;
 
 	/**
 	 * Resolve every abstract assigned to the given tag.

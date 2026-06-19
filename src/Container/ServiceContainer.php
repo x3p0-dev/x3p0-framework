@@ -208,11 +208,36 @@ final class ServiceContainer implements Container
 	/**
 	 * @inheritDoc
 	 */
+	public function forgetInstance(string $abstract): void
+	{
+		unset($this->instances[$abstract]);
+	}
+
+	/**
+	 * @inheritDoc
+	 */
 	public function tag(string|array $abstracts, string $tag): void
 	{
 		foreach ((array) $abstracts as $abstract) {
-			$this->tags[$tag][] = $abstract;
+			if (! in_array($abstract, $this->tags[$tag] ?? [], true)) {
+				$this->tags[$tag][] = $abstract;
+			}
 		}
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public function untag(string|array $abstracts, string $tag): void
+	{
+		if (! isset($this->tags[$tag])) {
+			return;
+		}
+
+		$this->tags[$tag] = array_values(array_diff(
+			$this->tags[$tag],
+			(array) $abstracts
+		));
 	}
 
 	/**
