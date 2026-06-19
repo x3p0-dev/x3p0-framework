@@ -79,20 +79,30 @@ abstract class ServiceProvider implements Bootable
 	 */
 	public function register(): void
 	{
-		foreach (static::SINGLETONS as $abstract => $concrete) {
-			is_int($abstract)
-				? $this->container->singleton($concrete)
-				: $this->container->singleton($abstract, $concrete);
-		}
-
-		foreach (static::SINGLETONS_IF as $abstract => $concrete) {
-			is_int($abstract)
-				? $this->container->singletonIf($concrete)
-				: $this->container->singletonIf($abstract, $concrete);
-		}
+		$this->registerSingletons(singletons: static::SINGLETONS, overridable: false);
+		$this->registerSingletons(singletons: static::SINGLETONS_IF, overridable: true);
 
 		foreach (static::TAGS as $tag => $abstracts) {
 			$this->container->tag($abstracts, $tag);
+		}
+	}
+
+	/**
+	 * Registers a map of singletons. Numeric-keyed entries are self-bound (the
+	 * abstract is its own concrete); string-keyed entries bind an abstract to a
+	 * concrete class name. When `$overridable`, each is registered only if the
+	 * abstract is not already bound.
+	 *
+	 * @param array<int|string, string> $singletons
+	 */
+	private function registerSingletons(array $singletons, bool $overridable): void
+	{
+		foreach ($singletons as $abstract => $concrete) {
+			$arguments = is_int($abstract) ? [$concrete] : [$abstract, $concrete];
+
+			$overridable
+				? $this->container->singletonIf(...$arguments)
+				: $this->container->singleton(...$arguments);
 		}
 	}
 
