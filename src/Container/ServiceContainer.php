@@ -93,6 +93,16 @@ final class ServiceContainer implements Container
 	/**
 	 * @inheritDoc
 	 */
+	public function transientIf(string $abstract, mixed $concrete = null): void
+	{
+		if (! $this->has($abstract)) {
+			$this->transient($abstract, $concrete);
+		}
+	}
+
+	/**
+	 * @inheritDoc
+	 */
 	public function singleton(string $abstract, mixed $concrete = null): void
 	{
 		unset($this->instances[$abstract]);
@@ -101,6 +111,16 @@ final class ServiceContainer implements Container
 			'concrete' => $concrete === null ? $abstract : $concrete,
 			'shared'   => true
 		];
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public function singletonIf(string $abstract, mixed $concrete = null): void
+	{
+		if (! $this->has($abstract)) {
+			$this->singleton($abstract, $concrete);
+		}
 	}
 
 	/**

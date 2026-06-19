@@ -46,6 +46,17 @@ abstract class ServiceProvider implements Bootable
 	protected const SINGLETONS = [];
 
 	/**
+	 * A map of singletons to register as overridable defaults, following
+	 * the same key conventions as `SINGLETONS`. Each is registered only if
+	 * the abstract is not already bound, so an extension may replace it by
+	 * binding its own concrete (via `singleton()`) regardless of load order.
+	 *
+	 * @var  array<int|string, string> Default singleton abstracts/concretes.
+	 * @todo Type hint with PHP 8.3+ requirement.
+	 */
+	protected const SINGLETONS_IF = [];
+
+	/**
 	 * A map of tag names to the list of abstracts assigned to each tag. The
 	 * tagged abstracts are resolvable together via the container's `tagged()`
 	 * method.
@@ -72,6 +83,12 @@ abstract class ServiceProvider implements Bootable
 			is_int($abstract)
 				? $this->container->singleton($concrete)
 				: $this->container->singleton($abstract, $concrete);
+		}
+
+		foreach (static::SINGLETONS_IF as $abstract => $concrete) {
+			is_int($abstract)
+				? $this->container->singletonIf($concrete)
+				: $this->container->singletonIf($abstract, $concrete);
 		}
 
 		foreach (static::TAGS as $tag => $abstracts) {
