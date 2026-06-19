@@ -71,6 +71,13 @@ final class ServiceContainer implements Container
 	private array $resolvingCallbacks = [];
 
 	/**
+	 * Maps an abstract to the list of decorators applied after it is built.
+	 *
+	 * @var array<string, array<Closure>>
+	 */
+	private array $extenders = [];
+
+	/**
 	 * @inheritDoc
 	 */
 	public function transient(string $abstract, mixed $concrete = null): void
@@ -158,6 +165,21 @@ final class ServiceContainer implements Container
 	/**
 	 * @inheritDoc
 	 */
+	public function extend(string $abstract, Closure $closure): void
+	{
+		$this->extenders[$abstract][] = $closure;
+
+		// If the instance is already cached (a resolved singleton, or a
+		// value bound via instance()), decorate it now and replace the
+		// stored copy so later resolutions return the wrapped object.
+		if (array_key_exists($abstract, $this->instances)) {
+			$this->instances[$abstract] = $closure($this->instances[$abstract], $this);
+		}
+	}
+
+	/**
+	 * @inheritDoc
+	 */
 	public function has(string $abstract): bool
 	{
 		return isset($this->bindings[$abstract]) || array_key_exists($abstract, $this->instances);
@@ -236,6 +258,11 @@ final class ServiceContainer implements Container
 			// Build the object.
 			$service = $this->build($concrete, $parameters);
 
+			// Apply any decorators registered for this abstract. Each
+			// may wrap or replace the instance, so this runs before
+			// caching to ensure the stored copy is the decorated one.
+			$service = $this->applyExtenders($abstract, $service);
+
 			// Decide whether to cache the instance. Explicit bindings
 			// take precedence; for autowired classes (those with no
 			// binding), the `#[Singleton]` attribute opts the class into
@@ -272,6 +299,19 @@ final class ServiceContainer implements Container
 		foreach ($this->resolvingCallbacks[$abstract] ?? [] as $callback) {
 			$callback($instance, $this);
 		}
+	}
+
+	/**
+	 * Apply any decorators registered for the given abstract, returning the
+	 * final (possibly wrapped) instance.
+	 */
+	private function applyExtenders(string $abstract, object $instance): object
+	{
+		foreach ($this->extenders[$abstract] ?? [] as $extender) {
+			$instance = $extender($instance, $this);
+		}
+
+		return $instance;
 	}
 
 	/**

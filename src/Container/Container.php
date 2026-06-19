@@ -88,6 +88,18 @@ interface Container
 	public function resolving(string $abstract, Closure $callback): void;
 
 	/**
+	 * Register a callback that may decorate or replace the given abstract
+	 * after it is built. The callback receives the resolved instance and the
+	 * container, and must return the instance to use in its place — typically
+	 * a wrapper satisfying the same contract. If the abstract is already
+	 * resolved or registered, the decorator is applied to the stored instance
+	 * immediately.
+	 *
+	 * @param Closure(object, Container): object $closure
+	 */
+	public function extend(string $abstract, Closure $closure): void;
+
+	/**
 	 * Check if a service is registered with the container.
 	 */
 	public function has(string $abstract): bool;
