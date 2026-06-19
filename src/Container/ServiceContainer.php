@@ -64,6 +64,13 @@ final class ServiceContainer implements Container
 	private array $singletonAttributeCache = [];
 
 	/**
+	 * Maps an abstract to the list of callbacks to run after it is built.
+	 *
+	 * @var array<string, array<Closure>>
+	 */
+	private array $resolvingCallbacks = [];
+
+	/**
 	 * @inheritDoc
 	 */
 	public function transient(string $abstract, mixed $concrete = null): void
@@ -138,6 +145,14 @@ final class ServiceContainer implements Container
 	{
 		return fn (array $parameters = []): object =>
 			$this->make($abstract, $parameters);
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public function resolving(string $abstract, Closure $callback): void
+	{
+		$this->resolvingCallbacks[$abstract][] = $callback;
 	}
 
 	/**
@@ -235,11 +250,27 @@ final class ServiceContainer implements Container
 				$this->instances[$abstract] = $service;
 			}
 
+			// Let registered callbacks observe the built instance.
+			// This runs after caching so a singleton's callbacks see
+			// the same shared object that later resolutions return.
+			$this->notifyResolving($abstract, $service);
+
 			return $service;
 		} finally {
 			// Always pop, even on failure, so a thrown-and-caught
 			// resolution does not corrupt the stack for later calls.
 			array_pop($this->buildStack);
+		}
+	}
+
+	/**
+	 * Run any callbacks registered for the given abstract against the freshly
+	 * built instance.
+	 */
+	private function notifyResolving(string $abstract, object $instance): void
+	{
+		foreach ($this->resolvingCallbacks[$abstract] ?? [] as $callback) {
+			$callback($instance, $this);
 		}
 	}
 

@@ -77,6 +77,17 @@ interface Container
 	public function defer(string $abstract): Closure;
 
 	/**
+	 * Register a callback fired after the given abstract is built, before it
+	 * is returned. The callback receives the resolved instance and the
+	 * container, and is expected to mutate the instance in place. Callbacks
+	 * run once per build, so a resolved singleton is only observed the first
+	 * time it is created.
+	 *
+	 * @param Closure(object, Container): void $callback
+	 */
+	public function resolving(string $abstract, Closure $callback): void;
+
+	/**
 	 * Check if a service is registered with the container.
 	 */
 	public function has(string $abstract): bool;
