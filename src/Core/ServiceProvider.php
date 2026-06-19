@@ -57,6 +57,28 @@ abstract class ServiceProvider implements Bootable
 	protected const SINGLETONS_IF = [];
 
 	/**
+	 * A map of transients to register (a new instance on each resolution),
+	 * following the same key conventions as `SINGLETONS`. Bindings that
+	 * require a closure factory should be registered in an overridden
+	 * `register()` method.
+	 *
+	 * @var  array<int|string, string> Transient abstracts/concretes.
+	 * @todo Type hint with PHP 8.3+ requirement.
+	 */
+	protected const TRANSIENTS = [];
+
+	/**
+	 * A map of transients to register as overridable defaults, following
+	 * the same key conventions as `SINGLETONS`. Each is registered only if
+	 * the abstract is not already bound, so an extension may replace it by
+	 * binding its own concrete (via `transient()`) regardless of load order.
+	 *
+	 * @var  array<int|string, string> Default transient abstracts/concretes.
+	 * @todo Type hint with PHP 8.3+ requirement.
+	 */
+	protected const TRANSIENTS_IF = [];
+
+	/**
 	 * A map of tag names to the list of abstracts assigned to each tag. The
 	 * tagged abstracts are resolvable together via the container's `tagged()`
 	 * method.
@@ -73,14 +95,17 @@ abstract class ServiceProvider implements Bootable
 	{}
 
 	/**
-	 * Registers each singleton listed in the `SINGLETONS` constant and assigns
-	 * each tag listed in the `TAGS` constant. Override and call
-	 * `parent::register()` to add custom bindings.
+	 * Registers the bindings listed in the `SINGLETONS`, `SINGLETONS_IF`,
+	 * `TRANSIENTS`, and `TRANSIENTS_IF` constants, and assigns each tag
+	 * listed in the `TAGS` constant. Override and call `parent::register()`
+	 * to add custom bindings.
 	 */
 	public function register(): void
 	{
-		$this->registerSingletons(singletons: static::SINGLETONS, overridable: false);
-		$this->registerSingletons(singletons: static::SINGLETONS_IF, overridable: true);
+		$this->registerBindings(static::SINGLETONS,    shared: true,  overridable: false);
+		$this->registerBindings(static::SINGLETONS_IF, shared: true,  overridable: true);
+		$this->registerBindings(static::TRANSIENTS,    shared: false, overridable: false);
+		$this->registerBindings(static::TRANSIENTS_IF, shared: false, overridable: true);
 
 		foreach (static::TAGS as $tag => $abstracts) {
 			$this->container->tag($abstracts, $tag);
@@ -88,21 +113,29 @@ abstract class ServiceProvider implements Bootable
 	}
 
 	/**
-	 * Registers a map of singletons. Numeric-keyed entries are self-bound (the
-	 * abstract is its own concrete); string-keyed entries bind an abstract to a
-	 * concrete class name. When `$overridable`, each is registered only if the
-	 * abstract is not already bound.
+	 * Registers a map of bindings of the given lifetime. Numeric-keyed
+	 * entries are self-bound (the abstract is its own concrete); string-keyed
+	 * entries bind an abstract to a concrete class name. When `$shared`,
+	 * the bindings are singletons; otherwise they are transients. When
+	 * `$overridable`, each is registered only if the abstract is not
+	 * already bound.
 	 *
-	 * @param array<int|string, string> $singletons
+	 * @param array<int|string, string> $bindings
 	 */
-	private function registerSingletons(array $singletons, bool $overridable): void
+	private function registerBindings(array $bindings, bool $shared, bool $overridable): void
 	{
-		foreach ($singletons as $abstract => $concrete) {
+		foreach ($bindings as $abstract => $concrete) {
 			$arguments = is_int($abstract) ? [$concrete] : [$abstract, $concrete];
 
-			$overridable
-				? $this->container->singletonIf(...$arguments)
-				: $this->container->singleton(...$arguments);
+			if ($shared) {
+				$overridable
+					? $this->container->singletonIf(...$arguments)
+					: $this->container->singleton(...$arguments);
+			} else {
+				$overridable
+					? $this->container->transientIf(...$arguments)
+					: $this->container->transient(...$arguments);
+			}
 		}
 	}
 
