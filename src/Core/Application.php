@@ -13,7 +13,6 @@ declare(strict_types=1);
 
 namespace X3P0\Framework\Core;
 
-use InvalidArgumentException;
 use X3P0\Framework\Container\Container;
 use X3P0\Framework\Contracts\Bootable;
 
@@ -95,7 +94,7 @@ abstract class Application implements Bootable
 	public function register(ServiceProvider|string $provider): void
 	{
 		if (is_string($provider) && ! is_subclass_of($provider, ServiceProvider::class)) {
-			throw new InvalidArgumentException(sprintf(
+			throw new InvalidProviderException(sprintf(
 				'Provider must be a %s class',
 				ServiceProvider::class
 			));

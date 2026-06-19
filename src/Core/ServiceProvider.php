@@ -13,7 +13,6 @@ declare(strict_types=1);
 
 namespace X3P0\Framework\Core;
 
-use LogicException;
 use X3P0\Framework\Container\Container;
 use X3P0\Framework\Contracts\Bootable;
 
@@ -149,7 +148,7 @@ abstract class ServiceProvider implements Bootable
 			$service = $this->container->get($abstract);
 
 			if (! $service instanceof Bootable) {
-				throw new LogicException(sprintf(
+				throw new UnbootableServiceException(sprintf(
 					'%s is listed in %s::BOOTABLE but does not implement %s.',
 					$abstract,
 					static::class,
