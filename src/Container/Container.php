@@ -13,6 +13,8 @@ declare(strict_types=1);
 
 namespace X3P0\Framework\Container;
 
+use Closure;
+
 /**
  * Defines the dependency injection container interface, which allows for
  * binding concrete implementations to abstracts. The container supports the
@@ -61,6 +63,18 @@ interface Container
 	 * @param array<string, mixed>                        $parameters
 	 */
 	public function call(callable|array $callback, array $parameters = []): mixed;
+
+	/**
+	 * Return a closure that resolves the given abstract on each call, so a
+	 * consumer can create instances on demand without depending on the
+	 * container itself. Values passed to the returned closure are matched by
+	 * name and take precedence over type-based resolution, mirroring `make()`.
+	 *
+	 * @template T of object
+	 * @param    class-string<T> $abstract
+	 * @return   Closure(array<string, mixed>): T
+	 */
+	public function defer(string $abstract): Closure;
 
 	/**
 	 * Check if a service is registered with the container.

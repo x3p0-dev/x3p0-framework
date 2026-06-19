@@ -134,6 +134,15 @@ final class ServiceContainer implements Container
 	/**
 	 * @inheritDoc
 	 */
+	public function defer(string $abstract): Closure
+	{
+		return fn (array $parameters = []): object =>
+			$this->make($abstract, $parameters);
+	}
+
+	/**
+	 * @inheritDoc
+	 */
 	public function has(string $abstract): bool
 	{
 		return isset($this->bindings[$abstract]) || array_key_exists($abstract, $this->instances);
