@@ -14,6 +14,7 @@ declare(strict_types=1);
 namespace X3P0\Framework\Container;
 
 use Closure;
+use Error;
 use ReflectionAttribute;
 use ReflectionClass;
 use ReflectionException;
@@ -95,7 +96,7 @@ final class ServiceContainer implements Container
 	 */
 	public function transientIf(string $abstract, mixed $concrete = null): void
 	{
-		if (! $this->has($abstract)) {
+		if (! $this->registered($abstract)) {
 			$this->transient($abstract, $concrete);
 		}
 	}
@@ -118,7 +119,7 @@ final class ServiceContainer implements Container
 	 */
 	public function singletonIf(string $abstract, mixed $concrete = null): void
 	{
-		if (! $this->has($abstract)) {
+		if (! $this->registered($abstract)) {
 			$this->singleton($abstract, $concrete);
 		}
 	}
@@ -133,7 +134,7 @@ final class ServiceContainer implements Container
 
 	/**
 	 * @inheritDoc
-	 * @throws ContainerException|ReflectionException
+	 * @throws ContainerException
 	 */
 	public function get(string $abstract): mixed
 	{
@@ -142,7 +143,7 @@ final class ServiceContainer implements Container
 
 	/**
 	 * @inheritDoc
-	 * @throws ContainerException|ReflectionException
+	 * @throws ContainerException
 	 */
 	public function make(string $abstract, array $parameters = []): object
 	{
@@ -202,7 +203,26 @@ final class ServiceContainer implements Container
 	 */
 	public function has(string $abstract): bool
 	{
+		// Mirror resolve(): a not-found error is avoided when the
+		// abstract is registered or its concrete is buildable (an
+		// existing class).
+		return $this->registered($abstract) || $this->isBuildable($abstract);
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public function registered(string $abstract): bool
+	{
 		return isset($this->bindings[$abstract]) || array_key_exists($abstract, $this->instances);
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public function resolved(string $abstract): bool
+	{
+		return array_key_exists($abstract, $this->instances);
 	}
 
 	/**
@@ -242,7 +262,7 @@ final class ServiceContainer implements Container
 
 	/**
 	 * @inheritDoc
-	 * @throws ContainerException|ReflectionException
+	 * @throws ContainerException
 	 */
 	public function tagged(string $tag): array
 	{
@@ -254,7 +274,7 @@ final class ServiceContainer implements Container
 
 	/**
 	 * Resolve a service from the container with additional parameters.
-	 * @throws ContainerException|ReflectionException
+	 * @throws ContainerException
 	 */
 	private function resolve(string $abstract, array $parameters = []): mixed
 	{
@@ -287,7 +307,7 @@ final class ServiceContainer implements Container
 			// registered-but-unbuildable binding so consumers can
 			// handle each case differently.
 			if (! $this->isBuildable($concrete)) {
-				if ($this->has($abstract)) {
+				if ($this->registered($abstract)) {
 					throw new ContainerException(sprintf(
 						'Service "%s" is registered but its bound concrete cannot be built.',
 						$abstract
@@ -405,31 +425,43 @@ final class ServiceContainer implements Container
 
 	/**
 	 * Build an instance of the given concrete.
-	 * @throws ContainerException|ReflectionException
+	 * @throws ContainerException
 	 */
 	private function build(Closure|string $concrete, array $parameters = []): object
 	{
-		// If concrete is a closure, invoke it.
+		// If concrete is a closure, invoke it. Exceptions thrown by a
+		// user-supplied factory propagate as-is.
 		if ($concrete instanceof Closure) {
 			return $concrete($this, $parameters);
 		}
 
-		// Otherwise, resolve as a class.
-		$reflector = new ReflectionClass($concrete);
+		// Otherwise, resolve as a class. Low-level reflection and
+		// instantiation failures (a missing or non-instantiable class,
+		// for example) are wrapped so the container only ever throws a
+		// ContainerException, while nested ContainerExceptions from
+		// dependency resolution propagate unchanged.
+		try {
+			$reflector = new ReflectionClass($concrete);
 
-		// Get the class constructor method.
-		$constructor = $reflector->getConstructor();
+			// Get the class constructor method.
+			$constructor = $reflector->getConstructor();
 
-		// If there's no constructor, just instantiate.
-		if ($constructor === null) {
-			return new $concrete();
+			// If there's no constructor, just instantiate.
+			if ($constructor === null) {
+				return new $concrete();
+			}
+
+			// Resolve constructor dependencies and create new instance.
+			return $reflector->newInstanceArgs($this->resolveDependencies(
+				$constructor->getParameters(),
+				$parameters
+			));
+		} catch (ReflectionException | Error $e) {
+			throw new ContainerException(
+				sprintf('Failed to build "%s": %s', $concrete, $e->getMessage()),
+				previous: $e
+			);
 		}
-
-		// Resolve constructor dependencies and create new instance.
-		return $reflector->newInstanceArgs($this->resolveDependencies(
-			$constructor->getParameters(),
-			$parameters
-		));
 	}
 
 	/**
@@ -488,7 +520,7 @@ final class ServiceContainer implements Container
 
 	/**
 	 * Resolve constructor dependencies.
-	 * @throws ContainerException|ReflectionException
+	 * @throws ContainerException
 	 */
 	private function resolveDependencies(array $params, array $providedParams): array
 	{
@@ -524,7 +556,7 @@ final class ServiceContainer implements Container
 			if ($type instanceof ReflectionNamedType && ! $type->isBuiltin()) {
 				$className = $type->getName();
 
-				if ($this->has($className)) {
+				if ($this->registered($className)) {
 					$dependencies[] = $this->resolve($className);
 					continue;
 				}

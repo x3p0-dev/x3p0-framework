@@ -122,9 +122,25 @@ interface Container
 	public function extend(string $abstract, Closure $closure): void;
 
 	/**
-	 * Check if a service is registered with the container.
+	 * Check whether the container can resolve the given abstract — that is,
+	 * whether `get()` would return without throwing a not-found error. This
+	 * is true for a registered abstract or any buildable (existing) class,
+	 * so an auto-wirable class reports `true` even without an explicit binding.
 	 */
 	public function has(string $abstract): bool;
+
+	/**
+	 * Check whether the abstract has been explicitly registered as a binding
+	 * or an instance. Unlike `has()`, this is `false` for a class that is
+	 * merely auto-wirable.
+	 */
+	public function registered(string $abstract): bool;
+
+	/**
+	 * Check whether an instance for the abstract is already cached — either
+	 * a resolved singleton or a value registered via `instance()`.
+	 */
+	public function resolved(string $abstract): bool;
 
 	/**
 	 * Forget a resolved singleton or registered instance so the next
