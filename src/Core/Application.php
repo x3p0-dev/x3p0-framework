@@ -37,13 +37,13 @@ abstract class Application implements Bootable
 	 *
 	 * @var array<string, ServiceProvider>
 	 */
-	private array $serviceProviders = [];
+	private array $registeredProviders = [];
 
 	/**
-	 * Tracks which providers have already been booted, keyed by class name, so
-	 * that `boot()` is safe to call across multiple load phases (e.g.,
-	 * `plugins_loaded` and `after_setup_theme`) without re-running a provider's
-	 * boot logic.
+	 * Tracks which providers have already been booted, keyed by class name,
+	 * so that `boot()` is safe to call across multiple load phases (e.g.,
+	 * `plugins_loaded` and `after_setup_theme`) without re-running a
+	 * provider's boot logic.
 	 *
 	 * @var array<string, true>
 	 */
@@ -106,7 +106,7 @@ abstract class Application implements Bootable
 
 		// Skip if a provider of this class is already registered, so the
 		// same provider added via multiple paths only registers once.
-		if (isset($this->serviceProviders[$class])) {
+		if (isset($this->registeredProviders[$class])) {
 			return;
 		}
 
@@ -117,7 +117,7 @@ abstract class Application implements Bootable
 		}
 
 		$provider->register();
-		$this->serviceProviders[$class] = $provider;
+		$this->registeredProviders[$class] = $provider;
 	}
 
 	/**
@@ -127,7 +127,7 @@ abstract class Application implements Bootable
 	 */
 	public function boot(): void
 	{
-		foreach ($this->serviceProviders as $class => $provider) {
+		foreach ($this->registeredProviders as $class => $provider) {
 			$this->bootProvider($class, $provider);
 		}
 	}
