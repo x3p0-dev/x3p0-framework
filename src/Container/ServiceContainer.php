@@ -322,7 +322,7 @@ final class ServiceContainer implements Container
 	/**
 	 * @inheritDoc
 	 */
-	public function taggedIds(string $tag): array
+	public function taggedAbstracts(string $tag): array
 	{
 		return $this->tags[$tag] ?? [];
 	}

@@ -19,7 +19,7 @@ use X3P0\Framework\Container\Container;
 
 /**
  * Injects the services assigned to a container tag as an array of deferred
- * resolvers, combining `Container::taggedIds()` with `Container::defer()`.
+ * resolvers, combining `Container::taggedAbstracts()` with `Container::defer()`.
  * Rather than building every tagged service up front, it injects one closure
  * per tagged abstract, each resolving its service only when called. The
  * consumer iterates and builds services on demand without depending on the
@@ -60,11 +60,11 @@ final class DeferredTagged implements ContextualAttribute
 	 */
 	public function resolve(Container $container): array
 	{
-		$ids = $container->taggedIds($this->tag);
+		$abstracts = $container->taggedAbstracts($this->tag);
 
-		return array_combine($ids, array_map(
+		return array_combine($abstracts, array_map(
 			fn (string $abstract): Closure => $container->defer($abstract),
-			$ids
+			$abstracts
 		));
 	}
 }

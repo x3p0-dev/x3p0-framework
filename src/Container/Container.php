@@ -192,7 +192,7 @@ interface Container
 	 *
 	 * @return array<string>
 	 */
-	public function taggedIds(string $tag): array;
+	public function taggedAbstracts(string $tag): array;
 
 	/**
 	 * Check whether any abstracts are currently assigned to the given tag. A
