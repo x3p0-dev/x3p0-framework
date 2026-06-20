@@ -184,4 +184,13 @@ interface Container
 	 * @return array<object>
 	 */
 	public function tagged(string $tag): array;
+
+	/**
+	 * Return the abstracts assigned to the given tag without resolving them,
+	 * for inspection or lazy resolution. The order matches assignment order,
+	 * and an unknown tag yields an empty array.
+	 *
+	 * @return array<string>
+	 */
+	public function taggedIds(string $tag): array;
 }

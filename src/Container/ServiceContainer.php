@@ -320,6 +320,14 @@ final class ServiceContainer implements Container
 	}
 
 	/**
+	 * @inheritDoc
+	 */
+	public function taggedIds(string $tag): array
+	{
+		return $this->tags[$tag] ?? [];
+	}
+
+	/**
 	 * Resolve a service from the container with additional parameters.
 	 * @throws ContainerException
 	 */
