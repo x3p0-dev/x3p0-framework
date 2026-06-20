@@ -84,7 +84,7 @@ final class ServiceContainer implements Container
 	 *
 	 * @var array<string, array<Closure>>
 	 */
-	private array $extenders = [];
+	private array $decorators = [];
 
 	/**
 	 * @inheritDoc
@@ -220,11 +220,11 @@ final class ServiceContainer implements Container
 	 * @inheritDoc
 	 * @throws ContainerException
 	 */
-	public function extend(string $abstract, Closure $closure): void
+	public function decorate(string $abstract, Closure $closure): void
 	{
 		$abstract = $this->getAlias($abstract);
 
-		$this->extenders[$abstract][] = $closure;
+		$this->decorators[$abstract][] = $closure;
 
 		// If the instance is already cached (a resolved singleton, or a
 		// value bound via instance()), decorate it now and replace the
@@ -402,7 +402,7 @@ final class ServiceContainer implements Container
 			// When the abstract is a transient view over a shared
 			// concrete, this re-wraps the same shared instance on each
 			// resolution, yielding a fresh decorator per call by design.
-			$service = $this->applyExtenders($abstract, $service);
+			$service = $this->applyDecorators($abstract, $service);
 
 			// Decide whether to cache the instance. Explicit bindings
 			// take precedence; for autowired classes (those with no
@@ -446,10 +446,10 @@ final class ServiceContainer implements Container
 	 * Apply any decorators registered for the given abstract, returning the
 	 * final (possibly wrapped) instance.
 	 */
-	private function applyExtenders(string $abstract, object $instance): object
+	private function applyDecorators(string $abstract, object $instance): object
 	{
-		foreach ($this->extenders[$abstract] ?? [] as $extender) {
-			$instance = $extender($instance, $this);
+		foreach ($this->decorators[$abstract] ?? [] as $decorator) {
+			$instance = $decorator($instance, $this);
 		}
 
 		return $instance;

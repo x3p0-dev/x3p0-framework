@@ -20,7 +20,7 @@ use Closure;
  * implementations to abstracts — as transients, singletons, or existing
  * instances — and autowires dependencies when resolving. It also supports
  * tagging, deferred resolution, and lifecycle hooks (`resolving()`,
- * `extend()`) for observing and decorating resolved services.
+ * `decorate()`) for observing and decorating resolved services.
  */
 interface Container
 {
@@ -120,16 +120,19 @@ interface Container
 	public function resolving(string $abstract, Closure $callback): void;
 
 	/**
-	 * Register a callback that may decorate or replace the given abstract
-	 * after it is built. The callback receives the resolved instance and the
-	 * container, and must return the instance to use in its place — typically
-	 * a wrapper satisfying the same contract. If the abstract is already
+	 * Register a callback that decorates the given abstract after it is built.
+	 * The callback receives the resolved instance and the container, and must
+	 * return the instance to use in its place — typically a wrapper that adds
+	 * behavior while satisfying the same contract. Though any replacement
+	 * honoring the contract is allowed (a reconfigured copy or an alternative
+	 * implementation). Multiple decorators stack in registration order,
+	 * each wrapping the result of the previous one. If the abstract is already
 	 * resolved or registered, the decorator is applied to the stored instance
 	 * immediately.
 	 *
 	 * @param Closure(object, Container): object $closure
 	 */
-	public function extend(string $abstract, Closure $closure): void;
+	public function decorate(string $abstract, Closure $closure): void;
 
 	/**
 	 * Check whether the container can resolve the given abstract — that is,
@@ -154,7 +157,7 @@ interface Container
 
 	/**
 	 * Forget a resolved singleton or registered instance so the next
-	 * resolution rebuilds it. The binding and any `resolving()`/`extend()`
+	 * resolution rebuilds it. The binding and any `resolving()`/`decorate()`
 	 * hooks are left in place and re-applied on the next build.
 	 */
 	public function forgetInstance(string $abstract): void;
