@@ -20,9 +20,12 @@ use ReflectionClass;
 use ReflectionException;
 use ReflectionFunction;
 use ReflectionFunctionAbstract;
+use ReflectionIntersectionType;
 use ReflectionMethod;
 use ReflectionNamedType;
 use ReflectionParameter;
+use ReflectionType;
+use ReflectionUnionType;
 use X3P0\Framework\Container\Attributes\ContextualAttribute;
 use X3P0\Framework\Container\Attributes\Singleton;
 
@@ -621,61 +624,231 @@ final class ServiceContainer implements Container
 
 	/**
 	 * Resolve constructor dependencies.
+	 *
 	 * @throws ContainerException
+	 * @param  ReflectionParameter[] $params
 	 */
 	private function resolveDependencies(array $params, array $providedParams): array
 	{
 		$dependencies = [];
 
 		foreach ($params as $param) {
-			$name = $param->getName();
-
-			// Use provided parameter if available
-			if (array_key_exists($name, $providedParams)) {
-				$dependencies[] = $providedParams[$name];
-				continue;
-			}
-
-			// A contextual attribute on the parameter resolves its
-			// own value and takes precedence over type-based autowiring.
-			$contextual = $param->getAttributes(
-				ContextualAttribute::class,
-				ReflectionAttribute::IS_INSTANCEOF
-			);
-
-			if ($contextual !== []) {
-				$dependencies[] = $contextual[0]->newInstance()->resolve($this);
-				continue;
-			}
-
-			$type = $param->getType();
-
-			// Only a single, non-built-in named type (a class or
-			// interface) can be autowired. Try to resolve it from
-			// the container or build it directly. Anything
-			// unresolvable falls through to the fallback.
-			if ($type instanceof ReflectionNamedType && ! $type->isBuiltin()) {
-				$className = $type->getName();
-
-				if ($this->registered($className)) {
-					$dependencies[] = $this->resolve($className);
-					continue;
-				}
-
-				if (class_exists($className)) {
-					$dependencies[] = $this->make($className);
-					continue;
-				}
-			}
-
-			// Untyped, built-in, union, or intersection types, as
-			// well as unresolvable class types, cannot be autowired.
-			// Fall back to a default value, `null` when the
-			// parameter is nullable, or fail.
-			$dependencies[] = $this->resolveFallback($param);
+			$dependencies[] = $this->resolveParameter($param, $providedParams);
 		}
 
 		return $dependencies;
+	}
+
+	/**
+	 * Resolve a single parameter, in order of precedence: an explicitly
+	 * provided argument, a contextual attribute, autowiring from the
+	 * parameter's type, and finally a fallback to a default value, `null`,
+	 * or failure.
+	 *
+	 * @param  array<string, mixed> $providedParams
+	 * @throws ContainerException
+	 */
+	private function resolveParameter(ReflectionParameter $param, array $providedParams): mixed
+	{
+		// An explicitly provided argument always wins.
+		$name = $param->getName();
+
+		if (array_key_exists($name, $providedParams)) {
+			return $providedParams[$name];
+		}
+
+		// A contextual attribute resolves its own value and takes
+		// precedence over type-based autowiring.
+		$contextual = $param->getAttributes(
+			ContextualAttribute::class,
+			ReflectionAttribute::IS_INSTANCEOF
+		);
+
+		if ($contextual !== []) {
+			return $contextual[0]->newInstance()->resolve($this);
+		}
+
+		// Autowire from the type, falling back to a default value, `null`
+		// when the parameter is nullable, or failing.
+		return $this->autowireParameter($param)
+			?? $this->resolveFallback($param);
+	}
+
+	/**
+	 * Autowire a dependency from a parameter type, returning the resolved
+	 * value or `null` when the type cannot be satisfied.
+	 *
+	 * typeAlternatives() expresses the type in disjunctive normal form: a
+	 * list of alternatives, each a set of class names a single object must
+	 * satisfy together (one for a plain type, several for an intersection).
+	 * A registered binding is preferred over a class that merely exists, so
+	 * the bindings pass runs across every alternative before the build
+	 * pass; the first alternative satisfied wins.
+	 *
+	 * A binding that resolves to `null` is indistinguishable from a type
+	 * that could not be autowired, so it too returns `null` and is deferred
+	 * to the caller's fallback. This is deliberate: for a nullable parameter
+	 * the fallback yields the same `null`, and for a non-nullable one it
+	 * raises a clear ContainerException rather than letting the `null` reach
+	 * the constructor as a TypeError. (Provided arguments and contextual
+	 * attributes are matched by presence, so their `null` values are not
+	 * subject to this and are injected as-is.)
+	 *
+	 * @throws ContainerException
+	 */
+	private function autowireParameter(ReflectionParameter $param): mixed
+	{
+		$alternatives = $this->typeAlternatives($param->getType());
+
+		// A registered binding anywhere wins over a class that merely
+		// exists, so every alternative is tried against bindings before
+		// any is built.
+		return $this->firstSatisfied($alternatives, $this->fromBinding(...))
+			?? $this->firstSatisfied($alternatives, $this->byBuilding(...));
+	}
+
+	/**
+	 * Returns the first alternative that $acquire can satisfy, or `null`.
+	 * Each alternative is a set of class names a single object must satisfy
+	 * together; $acquire turns a class name into a candidate, or `null`
+	 * when it has nothing to offer for that name.
+	 *
+	 * @param  list<list<class-string>>      $alternatives
+	 * @param  callable(class-string): mixed $acquire
+	 * @throws ContainerException
+	 */
+	private function firstSatisfied(array $alternatives, callable $acquire): mixed
+	{
+		foreach ($alternatives as $members) {
+			foreach ($members as $className) {
+				$candidate = $acquire($className);
+
+				if ($this->candidateSatisfies($candidate, $members)) {
+					return $candidate;
+				}
+			}
+		}
+
+		return null;
+	}
+
+	/**
+	 * Resolve a candidate from a registered binding, or `null` when the
+	 * name is not registered.
+	 *
+	 * @param  class-string $className
+	 * @throws ContainerException
+	 */
+	private function fromBinding(string $className): mixed
+	{
+		return $this->registered($className) ? $this->resolve($className) : null;
+	}
+
+	/**
+	 * Build a candidate from an existing class, or `null` when no such
+	 * class exists.
+	 *
+	 * @param  class-string $className
+	 * @throws ContainerException
+	 */
+	private function byBuilding(string $className): mixed
+	{
+		return class_exists($className) ? $this->make($className) : null;
+	}
+
+	/**
+	 * Decomposes a parameter type into the alternatives that can satisfy
+	 * it, in declaration order. Each alternative is a list of class names a
+	 * single object must satisfy together: one name for a plain class type,
+	 * several for an intersection. A union yields one alternative per
+	 * member. Built-in types and built-in union members yield nothing.
+	 *
+	 * This mirrors the disjunctive normal form (DNF) that PHP 8.2+ uses for
+	 * composite types — a union whose members may be intersections, e.g.
+	 * `(A&B)|C`. On PHP 8.1 a union never contains an intersection, so the
+	 * nested case simply never arises.
+	 *
+	 * @return list<list<class-string>>
+	 */
+	private function typeAlternatives(?ReflectionType $type): array
+	{
+		if ($type instanceof ReflectionNamedType) {
+			return $type->isBuiltin() ? [] : [[$type->getName()]];
+		}
+
+		if ($type instanceof ReflectionIntersectionType) {
+			return [$this->intersectionMembers($type)];
+		}
+
+		if ($type instanceof ReflectionUnionType) {
+			$alternatives = [];
+
+			foreach ($type->getTypes() as $member) {
+				if ($member instanceof ReflectionIntersectionType) {
+					$alternatives[] = $this->intersectionMembers($member);
+				} elseif ($member instanceof ReflectionNamedType && ! $member->isBuiltin()) {
+					$alternatives[] = [$member->getName()];
+				}
+			}
+
+			return $alternatives;
+		}
+
+		return [];
+	}
+
+	/**
+	 * Returns the class names that make up an intersection type, narrowed
+	 * to named types (the only members PHP permits in an intersection).
+	 *
+	 * @return list<class-string>
+	 */
+	private function intersectionMembers(ReflectionIntersectionType $type): array
+	{
+		$members = [];
+
+		foreach ($type->getTypes() as $member) {
+			if ($member instanceof ReflectionNamedType) {
+				$members[] = $member->getName();
+			}
+		}
+
+		return $members;
+	}
+
+	/**
+	 * Whether a candidate satisfies an alternative. A single-member
+	 * alternative is trusted as-is (any non-null value); a multi-member
+	 * (intersection) alternative requires an object that is an instance of
+	 * every member.
+	 *
+	 * @param list<class-string> $members
+	 */
+	private function candidateSatisfies(mixed $candidate, array $members): bool
+	{
+		if ($candidate === null) {
+			return false;
+		}
+
+		return count($members) === 1
+			|| (is_object($candidate) && $this->satisfiesAll($candidate, $members));
+	}
+
+	/**
+	 * Whether an object is an instance of every one of the given types,
+	 * i.e. whether it satisfies an intersection of them.
+	 *
+	 * @param list<class-string> $members
+	 */
+	private function satisfiesAll(object $candidate, array $members): bool
+	{
+		foreach ($members as $member) {
+			if (! $candidate instanceof $member) {
+				return false;
+			}
+		}
+
+		return true;
 	}
 
 	/**
