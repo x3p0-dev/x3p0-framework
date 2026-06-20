@@ -302,30 +302,57 @@ final class ServiceContainer implements Container
 			// Resolve the service.
 			$concrete = $this->getConcrete($abstract);
 
-			// If we can't build an object, throw an exception.
-			// Distinguish between an unknown identifier and a
-			// registered-but-unbuildable binding so consumers can
-			// handle each case differently.
-			if (! $this->isBuildable($concrete)) {
-				if ($this->registered($abstract)) {
-					throw new ContainerException(sprintf(
-						'Service "%s" is registered but its bound concrete cannot be built.',
+			// Delegation: when a binding maps the abstract to a
+			// *different* identifier (an interface bound to a concrete
+			// class, say), resolve that identifier in its own right
+			// rather than building it blindly here. This routes through
+			// the concrete's own binding, lifetime, `#[Singleton]`, and
+			// hooks, so a shared concrete reached via an interface is
+			// the same instance you would get resolving it directly.
+			//
+			// The concrete's decorators and resolving callbacks run
+			// inside this nested call; the abstract's own hooks are
+			// then layered on top below. Reaching this branch implies
+			// `$this->bindings[$abstract]` is set (only a binding can
+			// map the abstract to a differing concrete), so the
+			// `declaresSingleton()` check further down is skipped and
+			// the concrete's singleton lifetime is honored by the
+			// nested resolution instead.
+			if (
+				is_string($concrete)
+				&& $concrete !== $abstract
+				&& ($this->registered($concrete) || class_exists($concrete))
+			) {
+				$service = $this->resolve($concrete, $parameters);
+			} else {
+				// If we can't build an object, throw an exception.
+				// Distinguish between an unknown identifier and a
+				// registered-but-unbuildable binding so consumers can
+				// handle each case differently.
+				if (! $this->isBuildable($concrete)) {
+					if ($this->registered($abstract)) {
+						throw new ContainerException(sprintf(
+							'Service "%s" is registered but its bound concrete cannot be built.',
+							$abstract
+						));
+					}
+
+					throw new NotFoundException(sprintf(
+						'Service "%s" is not registered and could not be resolved.',
 						$abstract
 					));
 				}
 
-				throw new NotFoundException(sprintf(
-					'Service "%s" is not registered and could not be resolved.',
-					$abstract
-				));
+				// Build the object.
+				$service = $this->build($concrete, $parameters);
 			}
-
-			// Build the object.
-			$service = $this->build($concrete, $parameters);
 
 			// Apply any decorators registered for this abstract. Each
 			// may wrap or replace the instance, so this runs before
 			// caching to ensure the stored copy is the decorated one.
+			// When the abstract is a transient view over a shared
+			// concrete, this re-wraps the same shared instance on each
+			// resolution, yielding a fresh decorator per call by design.
 			$service = $this->applyExtenders($abstract, $service);
 
 			// Decide whether to cache the instance. Explicit bindings
