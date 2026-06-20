@@ -78,6 +78,16 @@ abstract class ServiceProvider implements Bootable
 	protected const TRANSIENTS_IF = [];
 
 	/**
+	 * A map of alias names to the abstracts they resolve to. Resolving an
+	 * alias resolves its abstract instead, returning the same instance and
+	 * lifetime, mirroring the container's `alias()` method.
+	 *
+	 * @var  array<string, string> Alias names mapped to abstracts.
+	 * @todo Type hint with PHP 8.3+ requirement.
+	 */
+	protected const ALIASES = [];
+
+	/**
 	 * A map of tag names to the list of abstracts assigned to each tag. The
 	 * tagged abstracts are resolvable together via the container's `tagged()`
 	 * method.
@@ -95,9 +105,9 @@ abstract class ServiceProvider implements Bootable
 
 	/**
 	 * Registers the bindings listed in the `SINGLETONS`, `SINGLETONS_IF`,
-	 * `TRANSIENTS`, and `TRANSIENTS_IF` constants, and assigns each tag
-	 * listed in the `TAGS` constant. Override and call `parent::register()`
-	 * to add custom bindings.
+	 * `TRANSIENTS`, and `TRANSIENTS_IF` constants, assigns each tag listed
+	 * in the `TAGS` constant, and registers each alias in the `ALIASES`
+	 * constant. Override and call `parent::register()` to add custom bindings.
 	 */
 	public function register(): void
 	{
@@ -105,6 +115,10 @@ abstract class ServiceProvider implements Bootable
 		$this->registerBindings(static::SINGLETONS_IF, shared: true,  overridable: true);
 		$this->registerBindings(static::TRANSIENTS,    shared: false, overridable: false);
 		$this->registerBindings(static::TRANSIENTS_IF, shared: false, overridable: true);
+
+		foreach (static::ALIASES as $alias => $abstract) {
+			$this->container->alias($alias, $abstract);
+		}
 
 		foreach (static::TAGS as $tag => $abstracts) {
 			$this->container->tag($abstracts, $tag);
