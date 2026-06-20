@@ -55,6 +55,16 @@ interface Container
 	public function instance(string $abstract, mixed $instance): void;
 
 	/**
+	 * Register an alias so that resolving `$alias` resolves `$abstract`
+	 * instead, returning the same instance and lifetime. Aliases are
+	 * followed transitively, so an alias may point at another alias. An
+	 * identifier is either an alias or a binding, never both: aliasing a
+	 * name drops any binding registered under it, and binding a name drops
+	 * any alias under it.
+	 */
+	public function alias(string $alias, string $abstract): void;
+
+	/**
 	 * Resolve a service from the container by its identifier, returning the
 	 * bound value or an autowired instance. Use `make()` to pass constructor
 	 * overrides or for a guaranteed object return.

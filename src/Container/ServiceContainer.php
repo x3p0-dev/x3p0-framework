@@ -49,6 +49,14 @@ final class ServiceContainer implements Container
 	protected array $tags = [];
 
 	/**
+	 * Maps an alias to the abstract it points at. Aliases are followed
+	 * transitively when an identifier is resolved.
+	 *
+	 * @var array<string, string>
+	 */
+	private array $aliases = [];
+
+	/**
 	 * Tracks the abstracts currently being resolved so that circular
 	 * dependencies are detected instead of recursing into a stack overflow.
 	 *
@@ -83,7 +91,7 @@ final class ServiceContainer implements Container
 	 */
 	public function transient(string $abstract, mixed $concrete = null): void
 	{
-		unset($this->instances[$abstract]);
+		unset($this->instances[$abstract], $this->aliases[$abstract]);
 
 		$this->bindings[$abstract] = [
 			'concrete' => $concrete === null ? $abstract : $concrete,
@@ -93,6 +101,7 @@ final class ServiceContainer implements Container
 
 	/**
 	 * @inheritDoc
+	 * @throws ContainerException
 	 */
 	public function transientIf(string $abstract, mixed $concrete = null): void
 	{
@@ -106,7 +115,7 @@ final class ServiceContainer implements Container
 	 */
 	public function singleton(string $abstract, mixed $concrete = null): void
 	{
-		unset($this->instances[$abstract]);
+		unset($this->instances[$abstract], $this->aliases[$abstract]);
 
 		$this->bindings[$abstract] = [
 			'concrete' => $concrete === null ? $abstract : $concrete,
@@ -116,6 +125,7 @@ final class ServiceContainer implements Container
 
 	/**
 	 * @inheritDoc
+	 * @throws ContainerException
 	 */
 	public function singletonIf(string $abstract, mixed $concrete = null): void
 	{
@@ -129,7 +139,29 @@ final class ServiceContainer implements Container
 	 */
 	public function instance(string $abstract, mixed $instance): void
 	{
+		unset($this->aliases[$abstract]);
+
 		$this->instances[$abstract] = $instance;
+	}
+
+	/**
+	 * @inheritDoc
+	 * @throws ContainerException
+	 */
+	public function alias(string $alias, string $abstract): void
+	{
+		if ($alias === $abstract) {
+			throw new ContainerException(sprintf(
+				'Cannot alias "%s" to itself.',
+				$alias
+			));
+		}
+
+		// An identifier is either an alias or a binding, never both, so a
+		// new alias drops any binding or cached instance under that name.
+		unset($this->bindings[$alias], $this->instances[$alias]);
+
+		$this->aliases[$alias] = $abstract;
 	}
 
 	/**
@@ -177,17 +209,21 @@ final class ServiceContainer implements Container
 
 	/**
 	 * @inheritDoc
+	 * @throws ContainerException
 	 */
 	public function resolving(string $abstract, Closure $callback): void
 	{
-		$this->resolvingCallbacks[$abstract][] = $callback;
+		$this->resolvingCallbacks[$this->getAlias($abstract)][] = $callback;
 	}
 
 	/**
 	 * @inheritDoc
+	 * @throws ContainerException
 	 */
 	public function extend(string $abstract, Closure $closure): void
 	{
+		$abstract = $this->getAlias($abstract);
+
 		$this->extenders[$abstract][] = $closure;
 
 		// If the instance is already cached (a resolved singleton, or a
@@ -200,9 +236,12 @@ final class ServiceContainer implements Container
 
 	/**
 	 * @inheritDoc
+	 * @throws ContainerException
 	 */
 	public function has(string $abstract): bool
 	{
+		$abstract = $this->getAlias($abstract);
+
 		// Mirror resolve(): a not-found error is avoided when the
 		// abstract is registered or its concrete is buildable (an
 		// existing class).
@@ -211,26 +250,31 @@ final class ServiceContainer implements Container
 
 	/**
 	 * @inheritDoc
+	 * @throws ContainerException
 	 */
 	public function registered(string $abstract): bool
 	{
+		$abstract = $this->getAlias($abstract);
+
 		return isset($this->bindings[$abstract]) || array_key_exists($abstract, $this->instances);
 	}
 
 	/**
 	 * @inheritDoc
+	 * @throws ContainerException
 	 */
 	public function resolved(string $abstract): bool
 	{
-		return array_key_exists($abstract, $this->instances);
+		return array_key_exists($this->getAlias($abstract), $this->instances);
 	}
 
 	/**
 	 * @inheritDoc
+	 * @throws ContainerException
 	 */
 	public function forgetInstance(string $abstract): void
 	{
-		unset($this->instances[$abstract]);
+		unset($this->instances[$this->getAlias($abstract)]);
 	}
 
 	/**
@@ -278,6 +322,11 @@ final class ServiceContainer implements Container
 	 */
 	private function resolve(string $abstract, array $parameters = []): mixed
 	{
+		// Follow any alias to its target up front so caching, circular
+		// dependency tracking, and binding lookups all key off the
+		// canonical identifier.
+		$abstract = $this->getAlias($abstract);
+
 		// Return cached instance if it exists and no parameters are
 		// provided. Note that singletons are cached as instances once
 		// they are resolved.
@@ -437,6 +486,31 @@ final class ServiceContainer implements Container
 	{
 		return $concrete instanceof Closure
 			|| (is_string($concrete) && class_exists($concrete));
+	}
+
+	/**
+	 * Follow an alias chain to the canonical identifier it points at,
+	 * returning the abstract unchanged when it is not aliased. A cycle in the
+	 * chain is reported rather than looping indefinitely.
+	 * @throws ContainerException
+	 */
+	private function getAlias(string $abstract): string
+	{
+		$seen = [];
+
+		while (isset($this->aliases[$abstract])) {
+			if (isset($seen[$abstract])) {
+				throw new ContainerException(sprintf(
+					'Circular alias detected while resolving "%s".',
+					$abstract
+				));
+			}
+
+			$seen[$abstract] = true;
+			$abstract = $this->aliases[$abstract];
+		}
+
+		return $abstract;
 	}
 
 	/**
