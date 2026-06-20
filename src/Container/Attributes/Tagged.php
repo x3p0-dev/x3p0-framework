@@ -1,7 +1,7 @@
 <?php
 
 /**
- * Tag attribute.
+ * Tagged attribute.
  *
  * @author    Justin Tadlock <justintadlock@gmail.com>
  * @copyright Copyright (c) 2025, Justin Tadlock
@@ -18,14 +18,15 @@ use X3P0\Framework\Container\Container;
 
 /**
  * Injects every service assigned to a container tag into the attributed
- * parameter. Pair it with an `iterable` or `array` parameter type:
+ * parameter, mirroring `Container::tagged()`. Pair it with an `iterable` or
+ * `array` parameter type:
  *
  *     public function __construct(
- *         #[Tag('theme.blocks')] iterable $blocks
+ *         #[Tagged('theme.blocks')] iterable $blocks
  *     ) {}
  */
 #[Attribute(Attribute::TARGET_PARAMETER)]
-final class Tag implements ContextualAttribute
+final class Tagged implements ContextualAttribute
 {
 	/**
 	 * Sets up the object state.
