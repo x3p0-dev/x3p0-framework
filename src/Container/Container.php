@@ -193,4 +193,11 @@ interface Container
 	 * @return array<string>
 	 */
 	public function taggedIds(string $tag): array;
+
+	/**
+	 * Check whether any abstracts are currently assigned to the given tag. A
+	 * tag whose abstracts have all been removed reports `false`, the same as
+	 * a tag that was never assigned.
+	 */
+	public function hasTag(string $tag): bool;
 }

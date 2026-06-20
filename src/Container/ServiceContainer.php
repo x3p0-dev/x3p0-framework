@@ -328,6 +328,14 @@ final class ServiceContainer implements Container
 	}
 
 	/**
+	 * @inheritDoc
+	 */
+	public function hasTag(string $tag): bool
+	{
+		return ! empty($this->tags[$tag]);
+	}
+
+	/**
 	 * Resolve a service from the container with additional parameters.
 	 * @throws ContainerException
 	 */
