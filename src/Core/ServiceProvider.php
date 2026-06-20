@@ -26,7 +26,9 @@ abstract class ServiceProvider implements Bootable
 {
 	/**
 	 * An array of abstracts to resolve from the container and boot. Each
-	 * entry must resolve to a `Bootable` instance.
+	 * entry must resolve to a `Bootable` instance. Services boot in the order
+	 * listed, so a service that depends on another having booted should be
+	 * declared after it.
 	 *
 	 * @var  array<string> Bootable service abstracts.
 	 * @todo Type hint with PHP 8.3+ requirement.
