@@ -1,6 +1,18 @@
 {
 	"name": "x3p0-dev/x3p0-framework",
+	"description": "A lightweight, modern dependency injection framework for WordPress plugins and themes.",
+	"type": "library",
 	"license": "GPL-2.0-or-later",
+	"keywords": [
+		"wordpress",
+		"container",
+		"dependency-injection",
+		"di",
+		"autowiring",
+		"service-provider",
+		"framework"
+	],
+	"homepage": "https://github.com/x3p0-dev/x3p0-framework",
 	"scripts": {
 		"build": [
 			"composer update --no-dev",
@@ -52,5 +64,9 @@
 			"name": "Justin Tadlock",
 			"email": "justintadlock@gmail.com"
 		}
-	]
+	],
+	"support": {
+		"issues": "https://github.com/x3p0-dev/x3p0-framework/issues",
+		"source": "https://github.com/x3p0-dev/x3p0-framework"
+	}
 }
