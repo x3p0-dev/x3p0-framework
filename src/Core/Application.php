@@ -22,11 +22,13 @@ use X3P0\Framework\Contracts\Bootable;
  * providers in the `PROVIDERS` constant (and may register more at runtime);
  * the application registers each provider's bindings, then boots them.
  *
- * Registration and booting are separate phases so that every provider's
- * services are registered before any provider boots. As a `Bootable` itself,
- * the application boots all registered providers when its own `boot()` runs,
- * and `boot()` is safe to call across multiple WordPress load phases (such as
- * `plugins_loaded` and `after_setup_theme`) — each provider boots only once.
+ * A single pass just registers providers and calls `boot()`. To register
+ * across multiple WordPress load phases (such as `plugins_loaded` and
+ * `after_setup_theme`), call `begin()` to open each later pass — it clears the
+ * booted state and returns the application. Then register that pass's
+ * providers and call `boot()` to boot them as a batch. Booting marks the
+ * application booted, so any provider registered afterward — outside a
+ * begin/boot pass — boots immediately. Each provider boots only once.
  */
 abstract class Application implements Bootable
 {
@@ -58,6 +60,14 @@ abstract class Application implements Bootable
 	private array $bootedProviders = [];
 
 	/**
+	 * Whether a boot pass has begun. Once it has, a provider registered
+	 * afterward is booted immediately on registration rather than waiting
+	 * for a boot pass that may never come. `begin()` clears it to open a
+	 * new registration pass for a later load phase.
+	 */
+	private bool $booted = false;
+
+	/**
 	 * Stores the container and registers the default bindings and service
 	 * providers, leaving the application ready to boot.
 	 */
@@ -80,9 +90,7 @@ abstract class Application implements Bootable
 	 */
 	protected function registerDefaultProviders(): void
 	{
-		foreach (static::PROVIDERS as $provider) {
-			$this->register($provider);
-		}
+		$this->register(...static::PROVIDERS);
 	}
 
 	/**
@@ -94,16 +102,53 @@ abstract class Application implements Bootable
 	}
 
 	/**
-	 * Register a service provider with the application. A provider may be
-	 * passed as an instance or as a class name. Class names are resolved
-	 * through the container, so providers can type-hint their own
-	 * dependencies in the constructor and have them auto-wired.
+	 * Register one or more service providers with the application. A
+	 * provider may be passed as an instance or as a class name; class names
+	 * are resolved through the container, so providers can type-hint their
+	 * own dependencies in the constructor and have them auto-wired.
+	 *
+	 * If the application has already booted, the providers in the call are
+	 * all registered first and then booted together. So a late batch keeps
+	 * the guarantee that every provider is registered before any of them
+	 * boots — and none is left dormant.
+	 *
+	 * @param ServiceProvider|class-string ...$providers
+	 */
+	public function register(ServiceProvider|string ...$providers): void
+	{
+		$registered = [];
+
+		foreach ($providers as $provider) {
+			$instance = $this->registerProvider($provider);
+
+			if ($instance !== null) {
+				$registered[] = $instance;
+			}
+		}
+
+		// Once booting has begun, providers registered afterward missed
+		// the boot pass. Boot them only after the whole batch is
+		// registered, so a provider can rely on the others registered
+		// in the same call.
+		if ($this->booted) {
+			foreach ($registered as $provider) {
+				$this->bootProvider($provider);
+			}
+		}
+	}
+
+	/**
+	 * Registers a single provider — validating it, skipping duplicates,
+	 * resolving a class name into an instance, and running its `register()`.
+	 * Returns the registered provider, or `null` when a provider of that class
+	 * is already registered. Booting is left to the caller so a batch can
+	 * finish registering before any provider boots.
 	 *
 	 * @param  ServiceProvider|class-string<ServiceProvider> $provider
 	 * @throws InvalidProviderException If a class-name provider is not a
 	 *         `ServiceProvider` subclass.
 	 */
-	public function register(ServiceProvider|string $provider): void
+	private function registerProvider(ServiceProvider|string $provider): ?ServiceProvider
 	{
 		if (is_string($provider) && ! is_subclass_of($provider, ServiceProvider::class)) {
 			throw new InvalidProviderException(sprintf(
@@ -119,7 +164,7 @@ abstract class Application implements Bootable
 		// Skip if a provider of this class is already registered, so the
 		// same provider added via multiple paths only registers once.
 		if (isset($this->registeredProviders[$class])) {
-			return;
+			return null;
 		}
 
 		// Resolve a class-name provider into an instance.
@@ -129,6 +174,8 @@ abstract class Application implements Bootable
 
 		$provider->register();
 		$this->registeredProviders[$class] = $provider;
+
+		return $provider;
 	}
 
 	/**
@@ -145,23 +192,50 @@ abstract class Application implements Bootable
 	}
 
 	/**
-	 * Boots all registered service providers that have not yet been booted.
-	 * Already-booted providers are skipped, making it safe to call this
-	 * method multiple times across different WordPress load phases.
+	 * Opens a fresh registration pass by clearing the booted flag, so
+	 * providers registered next are deferred until the following `boot()`
+	 * call instead of booting immediately. Returns the application so it
+	 * can be handed straight to a registration hook.
+	 *
+	 * A single register-then-boot pass does not need this. It is required
+	 * only when registering across multiple passes (such as one on
+	 * `plugins_loaded` and another on `after_setup_theme`), so each later
+	 * pass's providers boot together as a batch rather than auto-booting
+	 * one at a time.
+	 */
+	public function begin(): static
+	{
+		$this->booted = false;
+		return $this;
+	}
+
+	/**
+	 * Boots all registered service providers that have not yet been booted
+	 * and marks the application as booted, so any provider registered afterward
+	 * boots immediately on registration. Already-booted providers are skipped,
+	 * making it safe to call across multiple WordPress load phases.
 	 */
 	public function boot(): void
 	{
-		foreach ($this->registeredProviders as $class => $provider) {
-			$this->bootProvider($class, $provider);
+		// Mark booting as begun before the loop so a provider registered
+		// during this pass (for example, from another provider's boot())
+		// is booted immediately by register() rather than missed by the
+		// array snapshot.
+		$this->booted = true;
+
+		foreach ($this->registeredProviders as $provider) {
+			$this->bootProvider($provider);
 		}
 	}
 
 	/**
-	 * Boots a single provider unless it has already been booted, recording it
-	 * so that later boot passes skip it.
+	 * Boots a single provider unless it has already been booted, recording
+	 * it so that later boot passes skip it.
 	 */
-	private function bootProvider(string $class, ServiceProvider $provider): void
+	private function bootProvider(ServiceProvider $provider): void
 	{
+		$class = $provider::class;
+
 		if (isset($this->bootedProviders[$class])) {
 			return;
 		}
