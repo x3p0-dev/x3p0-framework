@@ -26,9 +26,9 @@
 ## -----------------------------------------------------------------------------
 
 # Ignore development folders.
-dev/ export-ignore
-docs/ export-ignore
-node_modules/ export-ignore
+/dev export-ignore
+/docs export-ignore
+/node_modules export-ignore
 /tests export-ignore
 
 # Ignore development files.
