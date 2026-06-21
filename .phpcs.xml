@@ -26,6 +26,8 @@
 	<!-- No need to check Yoda conditions. -->
 	<rule ref="WordPress.PHP">
 		<exclude name="WordPress.PHP.YodaConditions.NotYoda"/>
+		<!-- Deprecated in WPCS 3.3; PHPCompatibility covers cross-version checks. -->
+		<exclude name="WordPress.PHP.POSIXFunctions"/>
 	</rule>
 
 	<!-- This always recommends `wp_remote_get()` when it shouldn't be used. -->
