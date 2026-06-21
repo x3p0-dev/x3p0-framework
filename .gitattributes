@@ -29,13 +29,14 @@
 dev/ export-ignore
 docs/ export-ignore
 node_modules/ export-ignore
-tests/ export-ignore
+/tests export-ignore
 
 # Ignore development files.
 composer.lock export-ignore
 package-lock.json export-ignore
 package.json export-ignore
 phpstan.neon export-ignore
+phpunit.xml.dist export-ignore
 webpack.config.js export-ignore
 *.map export-ignore
 *.zip export-ignore

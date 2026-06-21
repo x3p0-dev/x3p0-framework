@@ -6,3 +6,5 @@
 *.map
 *.zip
 .DS_Store
+/.phpunit.cache
+/phpunit.xml

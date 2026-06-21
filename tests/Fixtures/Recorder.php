@@ -1,0 +1,11 @@
+<?php
+
+declare(strict_types=1);
+
+namespace X3P0\Framework\Tests\Fixtures;
+
+final class Recorder
+{
+	/** @var array<string> */
+	public array $events = [];
+}
