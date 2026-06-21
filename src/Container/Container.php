@@ -25,18 +25,6 @@ use Closure;
 interface Container
 {
 	/**
-	 * Register a transient service (new instance each time).
-	 */
-	public function transient(string $abstract, mixed $concrete = null): void;
-
-	/**
-	 * Register a transient service only if the abstract is not already
-	 * bound, so an existing binding (such as one registered by an extension)
-	 * is left in place.
-	 */
-	public function transientIf(string $abstract, mixed $concrete = null): void;
-
-	/**
 	 * Register a singleton service (cached instance).
 	 */
 	public function singleton(string $abstract, mixed $concrete = null): void;
@@ -47,6 +35,18 @@ interface Container
 	 * is left in place.
 	 */
 	public function singletonIf(string $abstract, mixed $concrete = null): void;
+
+	/**
+	 * Register a transient service (new instance each time).
+	 */
+	public function transient(string $abstract, mixed $concrete = null): void;
+
+	/**
+	 * Register a transient service only if the abstract is not already
+	 * bound, so an existing binding (such as one registered by an extension)
+	 * is left in place.
+	 */
+	public function transientIf(string $abstract, mixed $concrete = null): void;
 
 	/**
 	 * Register an existing value as a singleton. The value is stored and

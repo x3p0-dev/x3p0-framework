@@ -94,30 +94,6 @@ final class ServiceContainer implements Container
 	/**
 	 * @inheritDoc
 	 */
-	public function transient(string $abstract, mixed $concrete = null): void
-	{
-		unset($this->instances[$abstract], $this->aliases[$abstract]);
-
-		$this->bindings[$abstract] = [
-			'concrete' => $concrete === null ? $abstract : $concrete,
-			'shared'   => false
-		];
-	}
-
-	/**
-	 * @inheritDoc
-	 * @throws ContainerException
-	 */
-	public function transientIf(string $abstract, mixed $concrete = null): void
-	{
-		if (! $this->registered($abstract)) {
-			$this->transient($abstract, $concrete);
-		}
-	}
-
-	/**
-	 * @inheritDoc
-	 */
 	public function singleton(string $abstract, mixed $concrete = null): void
 	{
 		unset($this->instances[$abstract], $this->aliases[$abstract]);
@@ -136,6 +112,30 @@ final class ServiceContainer implements Container
 	{
 		if (! $this->registered($abstract)) {
 			$this->singleton($abstract, $concrete);
+		}
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public function transient(string $abstract, mixed $concrete = null): void
+	{
+		unset($this->instances[$abstract], $this->aliases[$abstract]);
+
+		$this->bindings[$abstract] = [
+			'concrete' => $concrete === null ? $abstract : $concrete,
+			'shared'   => false
+		];
+	}
+
+	/**
+	 * @inheritDoc
+	 * @throws ContainerException
+	 */
+	public function transientIf(string $abstract, mixed $concrete = null): void
+	{
+		if (! $this->registered($abstract)) {
+			$this->transient($abstract, $concrete);
 		}
 	}
 
