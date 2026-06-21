@@ -2,6 +2,7 @@
 /.idea
 /node_modules
 /vendor
+/composer.lock
 *.map
 *.zip
 .DS_Store
