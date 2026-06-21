@@ -157,6 +157,9 @@ abstract class ServiceProvider implements Bootable
 	/**
 	 * Resolves and boots each abstract listed in the `BOOTABLE` constant.
 	 * Override and call `parent::boot()` to add custom boot logic.
+	 *
+	 * @throws UnbootableServiceException If a `BOOTABLE` entry does not
+	 *         implement `Bootable`.
 	 */
 	public function boot(): void
 	{

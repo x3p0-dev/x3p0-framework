@@ -20,6 +20,9 @@ use Attribute;
  * autowires it, without requiring an explicit singleton binding. It only
  * applies to classes resolved without an explicit binding; a binding's declared
  * lifetime always takes precedence.
+ *
+ *     #[Singleton]
+ *     final class FileCache implements Cache {}
  */
 #[Attribute(Attribute::TARGET_CLASS)]
 final class Singleton

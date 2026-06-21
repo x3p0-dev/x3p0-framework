@@ -17,8 +17,16 @@ use X3P0\Framework\Container\Container;
 use X3P0\Framework\Contracts\Bootable;
 
 /**
- * Base class that does the heavy lifting of bootstrapping an application while
- * letting subclasses handle the registration aspects specific to them.
+ * Base application class that wires a project together around a dependency
+ * injection container and a set of service providers. A subclass lists its
+ * providers in the `PROVIDERS` constant (and may register more at runtime);
+ * the application registers each provider's bindings, then boots them.
+ *
+ * Registration and booting are separate phases so that every provider's
+ * services are registered before any provider boots. As a `Bootable` itself,
+ * the application boots all registered providers when its own `boot()` runs,
+ * and `boot()` is safe to call across multiple WordPress load phases (such as
+ * `plugins_loaded` and `after_setup_theme`) — each provider boots only once.
  */
 abstract class Application implements Bootable
 {
@@ -50,11 +58,11 @@ abstract class Application implements Bootable
 	private array $bootedProviders = [];
 
 	/**
-	 * Sets up the initial object state.
+	 * Stores the container and registers the default bindings and service
+	 * providers, leaving the application ready to boot.
 	 */
 	public function __construct(protected readonly Container $container)
 	{
-		// Register default bindings and service providers.
 		$this->registerDefaultBindings();
 		$this->registerDefaultProviders();
 	}
@@ -90,6 +98,10 @@ abstract class Application implements Bootable
 	 * passed as an instance or as a class name. Class names are resolved
 	 * through the container, so providers can type-hint their own
 	 * dependencies in the constructor and have them auto-wired.
+	 *
+	 * @param  ServiceProvider|class-string<ServiceProvider> $provider
+	 * @throws InvalidProviderException If a class-name provider is not a
+	 *         `ServiceProvider` subclass.
 	 */
 	public function register(ServiceProvider|string $provider): void
 	{

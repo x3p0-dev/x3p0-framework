@@ -36,6 +36,8 @@ final class ServiceContainer implements Container
 {
 	/**
 	 * Stores registered services.
+	 *
+	 * @var array<string, array{concrete: mixed, shared: bool}>
 	 */
 	protected array $bindings = [];
 
@@ -336,7 +338,10 @@ final class ServiceContainer implements Container
 	}
 
 	/**
-	 * Resolve a service from the container with additional parameters.
+	 * Resolve a service from the container, optionally with named constructor
+	 * overrides. A parameterized resolution is never cached.
+	 *
+	 * @param  array<string, mixed> $parameters
 	 * @throws ContainerException
 	 */
 	private function resolve(string $abstract, array $parameters = []): mixed
@@ -475,7 +480,9 @@ final class ServiceContainer implements Container
 	}
 
 	/**
-	 * Check if an abstract is bound as a singleton.
+	 * Whether the abstract should be treated as shared: either it already has
+	 * a cached instance (a resolved singleton or an `instance()` value), or its
+	 * binding opts into singleton lifetime.
 	 */
 	private function isShared(string $abstract): bool
 	{
@@ -533,8 +540,8 @@ final class ServiceContainer implements Container
 	}
 
 	/**
-	 * Get the concrete implementation for an abstract. If no service
-	 * exists, return the abstract itself for auto-resolution.
+	 * Get the concrete bound to an abstract, or the abstract itself (for
+	 * auto-resolution) when it has no binding.
 	 */
 	private function getConcrete(string $abstract): mixed
 	{
@@ -544,7 +551,12 @@ final class ServiceContainer implements Container
 	}
 
 	/**
-	 * Build an instance of the given concrete.
+	 * Build an instance of the given concrete. A closure concrete is treated
+	 * as a factory and invoked as `fn(Container $container, array $parameters):
+	 * object`; a class-name concrete is reflected and instantiated with its
+	 * autowired dependencies.
+	 *
+	 * @param  array<string, mixed> $parameters Named constructor overrides.
 	 * @throws ContainerException
 	 */
 	private function build(Closure|string $concrete, array $parameters = []): object

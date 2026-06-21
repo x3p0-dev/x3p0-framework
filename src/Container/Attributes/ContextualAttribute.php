@@ -24,7 +24,10 @@ use X3P0\Framework\Container\Container;
 interface ContextualAttribute
 {
 	/**
-	 * Resolves the value to inject for the attributed parameter.
+	 * Resolves the value to inject for the attributed parameter, using the
+	 * resolving container as needed. The return type is `mixed` so an
+	 * implementation may narrow it — a closure, an array of services, a
+	 * scalar value, and so on.
 	 */
 	public function resolve(Container $container): mixed;
 }

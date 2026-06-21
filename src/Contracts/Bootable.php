@@ -22,9 +22,10 @@ namespace X3P0\Framework\Contracts;
 interface Bootable
 {
 	/**
-	 * This is often useful for adding actions or filters in WordPress, but
-	 * it can also be used to bootstrap any other code that you wouldn't
-	 * normally add to the class constructor.
+	 * Boots the object, running any deferred setup that should not live in
+	 * the constructor. This is often useful for adding actions or filters
+	 * in WordPress, but it can also be used to bootstrap any other code
+	 * that you wouldn't normally add to the class constructor.
 	 */
 	public function boot(): void;
 }

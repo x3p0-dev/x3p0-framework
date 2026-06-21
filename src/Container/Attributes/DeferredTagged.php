@@ -47,7 +47,7 @@ use X3P0\Framework\Container\Container;
 final class DeferredTagged implements ContextualAttribute
 {
 	/**
-	 * Sets up the object state.
+	 * Stores the tag whose deferred resolvers are injected.
 	 */
 	public function __construct(private readonly string $tag)
 	{}

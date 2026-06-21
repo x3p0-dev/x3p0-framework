@@ -35,7 +35,7 @@ use X3P0\Framework\Container\Container;
 final class Defer implements ContextualAttribute
 {
 	/**
-	 * Sets up the object state.
+	 * Stores the identifier whose resolution is deferred.
 	 */
 	public function __construct(private readonly string $abstract)
 	{}
