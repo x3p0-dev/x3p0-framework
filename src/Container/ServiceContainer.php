@@ -43,6 +43,8 @@ final class ServiceContainer implements Container
 
 	/**
 	 * Stores registered instances and resolved singletons.
+	 *
+	 * @var array<string, mixed>
 	 */
 	protected array $instances = [];
 
@@ -653,8 +655,10 @@ final class ServiceContainer implements Container
 	/**
 	 * Resolve constructor dependencies.
 	 *
-	 * @throws ContainerException
 	 * @param  ReflectionParameter[] $params
+	 * @param  array<string, mixed>  $providedParams
+	 * @return list<mixed>
+	 * @throws ContainerException
 	 */
 	private function resolveDependencies(array $params, array $providedParams): array
 	{

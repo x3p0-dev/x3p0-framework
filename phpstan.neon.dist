@@ -1,0 +1,8 @@
+parameters:
+	level: 6
+	paths:
+		- src
+	# Defensive runtime type checks (e.g. against DNF reflection types) are not
+	# redundant just because a PHPDoc implies the type, so don't treat PHPDoc
+	# types as certain.
+	treatPhpDocTypesAsCertain: false

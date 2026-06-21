@@ -102,9 +102,7 @@ interface Container
 	 * container itself. Values passed to the returned closure are matched by
 	 * name and take precedence over type-based resolution, mirroring `make()`.
 	 *
-	 * @template T of object
-	 * @param    class-string<T> $abstract
-	 * @return   Closure(array<string, mixed>): T
+	 * @return Closure(array<string, mixed>): object
 	 */
 	public function defer(string $abstract): Closure;
 

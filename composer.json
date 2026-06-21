@@ -13,8 +13,10 @@
 		"lint:php": "./vendor/bin/phpcs -d error_reporting=E_ALL^E_DEPRECATED -s --colors .",
 		"fix:php": "./vendor/bin/phpcbf -d error_reporting=E_ALL^E_DEPRECATED -s --colors .",
 		"test": "./vendor/bin/phpunit",
+		"analyze": "./vendor/bin/phpstan analyse",
 		"check": [
 			"@lint:php",
+			"@analyze",
 			"@test"
 		]
 	},
@@ -32,6 +34,7 @@
                 "php": ">=8.1"
 	},
 	"require-dev": {
+		"phpstan/phpstan": "^2.0",
 		"phpunit/phpunit": "^10.5",
 		"wp-coding-standards/wpcs": "^3.0",
 		"phpcompatibility/phpcompatibility-wp": "*",
