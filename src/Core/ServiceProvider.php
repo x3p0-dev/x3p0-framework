@@ -113,10 +113,10 @@ abstract class ServiceProvider implements Bootable
 	 */
 	public function register(): void
 	{
-		$this->registerBindings(static::SINGLETONS,    shared: true,  overridable: false);
-		$this->registerBindings(static::SINGLETONS_IF, shared: true,  overridable: true);
-		$this->registerBindings(static::TRANSIENTS,    shared: false, overridable: false);
-		$this->registerBindings(static::TRANSIENTS_IF, shared: false, overridable: true);
+		$this->registerBindings(static::SINGLETONS,    $this->container->singleton(...));
+		$this->registerBindings(static::SINGLETONS_IF, $this->container->singletonIf(...));
+		$this->registerBindings(static::TRANSIENTS,    $this->container->transient(...));
+		$this->registerBindings(static::TRANSIENTS_IF, $this->container->transientIf(...));
 
 		foreach (static::ALIASES as $alias => $abstract) {
 			$this->container->alias($alias, $abstract);
@@ -128,29 +128,17 @@ abstract class ServiceProvider implements Bootable
 	}
 
 	/**
-	 * Registers a map of bindings of the given lifetime. Numeric-keyed
-	 * entries are self-bound (the abstract is its own concrete); string-keyed
-	 * entries bind an abstract to a concrete class name. When `$shared`,
-	 * the bindings are singletons; otherwise they are transients. When
-	 * `$overridable`, each is registered only if the abstract is not
-	 * already bound.
+	 * Registers a map of bindings with the given container binder. A
+	 * numeric-keyed entry is self-bound (the abstract is its own concrete);
+	 * a string-keyed entry binds the abstract to its concrete class name.
 	 *
-	 * @param array<int|string, string> $bindings
+	 * @param array<int|string, string>       $bindings
+	 * @param callable(string, string=): void $bind
 	 */
-	private function registerBindings(array $bindings, bool $shared, bool $overridable): void
+	private function registerBindings(array $bindings, callable $bind): void
 	{
 		foreach ($bindings as $abstract => $concrete) {
-			$arguments = is_int($abstract) ? [$concrete] : [$abstract, $concrete];
-
-			if ($shared) {
-				$overridable
-					? $this->container->singletonIf(...$arguments)
-					: $this->container->singleton(...$arguments);
-			} else {
-				$overridable
-					? $this->container->transientIf(...$arguments)
-					: $this->container->transient(...$arguments);
-			}
+			is_int($abstract) ? $bind($concrete) : $bind($abstract, $concrete);
 		}
 	}
 
