@@ -16,7 +16,12 @@
 	<rule ref="WordPress.CodeAnalysis"/>
 	<rule ref="WordPress.DateTime"/>
 	<rule ref="WordPress.DB"/>
-	<rule ref="WordPress.Security"/>
+
+	<!-- Exception messages are not HTML output, and the core stays free of
+	WordPress, so they cannot be run through `esc_*()`. -->
+	<rule ref="WordPress.Security">
+		<exclude name="WordPress.Security.EscapeOutput.ExceptionNotEscaped"/>
+	</rule>
 
 	<!-- No need to check Yoda conditions. -->
 	<rule ref="WordPress.PHP">
@@ -54,6 +59,9 @@
 		<!-- Allow nicer even spacing for method parameters. -->
 		<exclude name="Squiz.Functions.FunctionDeclarationArgumentSpacing.SpaceBeforeEquals"/>
 		<exclude name="Squiz.Functions.FunctionDeclarationArgumentSpacing.SpacingAfterHint"/>
+
+		<!-- Allow aligned spacing across similar function calls. -->
+		<exclude name="Generic.Functions.FunctionCallArgumentSpacing.TooMuchSpaceAfterComma"/>
 
 		<!-- This is excluded because it catches empty constructors. -->
 		<exclude name="Squiz.WhiteSpace.ScopeClosingBrace.ContentBefore"/>
