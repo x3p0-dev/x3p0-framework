@@ -110,14 +110,26 @@ abstract class Application implements Bootable
 			return;
 		}
 
-		// Resolve a class-name provider through the container, so providers
-		// can type-hint their own dependencies and have them auto-wired.
+		// Resolve a class-name provider into an instance.
 		if (is_string($provider)) {
-			$provider = $this->container->make($provider);
+			$provider = $this->resolveProvider($provider);
 		}
 
 		$provider->register();
 		$this->registeredProviders[$class] = $provider;
+	}
+
+	/**
+	 * Resolve a service provider instance from its class name. Resolution
+	 * goes through the container, so a provider can type-hint its own
+	 * dependencies in the constructor and have them auto-wired. Override to
+	 * customize how providers are constructed.
+	 *
+	 * @param class-string<ServiceProvider> $provider
+	 */
+	protected function resolveProvider(string $provider): ServiceProvider
+	{
+		return $this->container->make($provider);
 	}
 
 	/**
