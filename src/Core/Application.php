@@ -119,9 +119,7 @@ abstract class Application implements Bootable
 		$registered = [];
 
 		foreach ($providers as $provider) {
-			$instance = $this->registerProvider($provider);
-
-			if ($instance !== null) {
+			if ($instance = $this->registerProvider($provider)) {
 				$registered[] = $instance;
 			}
 		}
@@ -130,7 +128,7 @@ abstract class Application implements Bootable
 		// the boot pass. Boot them only after the whole batch is
 		// registered, so a provider can rely on the others registered
 		// in the same call.
-		if ($this->booted) {
+		if ($this->booted && $registered !== []) {
 			foreach ($registered as $provider) {
 				$this->bootProvider($provider);
 			}
