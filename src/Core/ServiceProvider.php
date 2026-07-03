@@ -155,12 +155,12 @@ abstract class ServiceProvider implements Bootable
 			$service = $this->container->get($abstract);
 
 			if (! $service instanceof Bootable) {
-				throw new UnbootableServiceException(sprintf(
+				throw new UnbootableServiceException(esc_html(sprintf(
 					'%s is listed in %s::BOOTABLE but does not implement %s.',
 					$abstract,
 					static::class,
 					Bootable::class
-				));
+				)));
 			}
 
 			$service->boot();

@@ -158,10 +158,10 @@ final class ServiceContainer implements Container
 	public function alias(string $alias, string $abstract): void
 	{
 		if ($alias === $abstract) {
-			throw new ContainerException(sprintf(
+			throw new ContainerException(esc_html(sprintf(
 				'Cannot alias "%s" to itself.',
 				$alias
-			));
+			)));
 		}
 
 		// An identifier is either an alias or a binding, never both, so a
@@ -362,11 +362,11 @@ final class ServiceContainer implements Container
 
 		// Detect circular dependencies before recursing any further.
 		if (in_array($abstract, $this->buildStack, true)) {
-			throw new ContainerException(sprintf(
+			throw new ContainerException(esc_html(sprintf(
 				'Circular dependency detected while resolving "%s": %s.',
 				$abstract,
 				implode(' -> ', [...$this->buildStack, $abstract])
-			));
+			)));
 		}
 
 		// Track this abstract for the duration of the build so nested
@@ -528,10 +528,10 @@ final class ServiceContainer implements Container
 
 		while (isset($this->aliases[$abstract])) {
 			if (isset($seen[$abstract])) {
-				throw new ContainerException(sprintf(
+				throw new ContainerException(esc_html(sprintf(
 					'Circular alias detected while resolving "%s".',
 					$abstract
-				));
+				)));
 			}
 
 			$seen[$abstract] = true;
@@ -592,8 +592,13 @@ final class ServiceContainer implements Container
 			));
 		} catch (ReflectionException | Error $e) {
 			throw new ContainerException(
-				sprintf('Failed to build "%s": %s', $concrete, $e->getMessage()),
-				previous: $e
+				esc_html(sprintf(
+					'Failed to build "%s": %s',
+					$concrete,
+					$e->getMessage()
+				)),
+				// The previous exception is a Throwable for chaining, not output.
+				previous: $e // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped
 			);
 		}
 	}
@@ -900,11 +905,11 @@ final class ServiceContainer implements Container
 			return null;
 		}
 
-		throw new ContainerException(sprintf(
+		throw new ContainerException(esc_html(sprintf(
 			'Unresolvable dependency: parameter "$%s"%s in %s could not be resolved.',
 			$param->getName(),
 			$type ? sprintf(' of type %s', $type) : '',
 			$param->getDeclaringClass()?->getName() ?? 'an unknown class'
-		));
+		)));
 	}
 }

@@ -15,7 +15,7 @@ A lightweight, modern dependency injection framework for WordPress plugins and t
 - **Flexible lifetimes** — singletons, transients, pre-built instances, aliases, and "register only if missing" defaults that extensions can override.
 - **Tagging** — group related services under a label and resolve them together, eagerly or lazily.
 - **Lifecycle hooks** — observe (`resolving()`) or wrap (`decorate()`) services as they are built.
-- **WordPress-friendly lifecycle** — register and boot across multiple load phases (`plugins_loaded`, `after_setup_theme`, …) while the core stays free of WordPress dependencies.
+- **WordPress-friendly lifecycle** — register and boot across multiple load phases (`plugins_loaded`, `after_setup_theme`, …).
 - **Type-safe** — full PHP 8.1+ type declarations for first-class IDE and static-analysis support.
 
 ## Table of Contents

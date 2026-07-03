@@ -35,7 +35,6 @@
 composer.lock export-ignore
 package-lock.json export-ignore
 package.json export-ignore
-phpstan.neon export-ignore
 phpunit.xml.dist export-ignore
 webpack.config.js export-ignore
 *.map export-ignore

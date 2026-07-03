@@ -18,7 +18,6 @@ There are instances where I opt for personal choices of my own. In terms of cont
 Install the development dependencies with `composer install`, then run `composer check` before submitting a pull request. It runs the full set of checks:
 
 - `composer lint:php` — coding standards (PHP_CodeSniffer)
-- `composer analyze` — static analysis (PHPStan)
 - `composer test` — tests (PHPUnit)
 
 Run `composer fix:php` to automatically correct many coding-standard issues.

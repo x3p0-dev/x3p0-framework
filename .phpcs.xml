@@ -16,12 +16,7 @@
 	<rule ref="WordPress.CodeAnalysis"/>
 	<rule ref="WordPress.DateTime"/>
 	<rule ref="WordPress.DB"/>
-
-	<!-- Exception messages are not HTML output, and the core stays free of
-	WordPress, so they cannot be run through `esc_*()`. -->
-	<rule ref="WordPress.Security">
-		<exclude name="WordPress.Security.EscapeOutput.ExceptionNotEscaped"/>
-	</rule>
+	<rule ref="WordPress.Security"/>
 
 	<!-- No need to check Yoda conditions. -->
 	<rule ref="WordPress.PHP">
