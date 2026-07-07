@@ -12,7 +12,11 @@ use X3P0\Framework\Tests\Fixtures\Cache;
 use X3P0\Framework\Tests\Fixtures\FileCache;
 use X3P0\Framework\Tests\Fixtures\LoggingCache;
 use X3P0\Framework\Tests\Fixtures\NeedsStatus;
+use X3P0\Framework\Tests\Fixtures\OptionalValueObject;
 use X3P0\Framework\Tests\Fixtures\ReportBuilder;
+use X3P0\Framework\Tests\Fixtures\RequiresValueObject;
+use X3P0\Framework\Tests\Fixtures\UnionValueObject;
+use X3P0\Framework\Tests\Fixtures\ValueObject;
 
 final class ServiceContainerTest extends TestCase
 {
@@ -104,5 +108,45 @@ final class ServiceContainerTest extends TestCase
 		$this->expectException(ContainerException::class);
 
 		$this->container->make(NeedsStatus::class);
+	}
+
+	public function testOptionalUnbuildableDependencyFallsBackToDefault(): void
+	{
+		// `ValueObject` exists but cannot be autowired. Because the
+		// parameter is optional, the build failure must not escape: the
+		// default value is used instead.
+		$object = $this->container->make(OptionalValueObject::class);
+
+		$this->assertNull($object->value);
+	}
+
+	public function testOptionalUnbuildableDependencyStillUsesABinding(): void
+	{
+		// A registered binding is preferred over building, so an optional
+		// parameter is satisfied when one exists rather than falling back.
+		$value = new ValueObject('source');
+		$this->container->instance(ValueObject::class, $value);
+
+		$object = $this->container->make(OptionalValueObject::class);
+
+		$this->assertSame($value, $object->value);
+	}
+
+	public function testRequiredUnbuildableDependencyStillThrows(): void
+	{
+		// With no fallback of its own, a required un-autowirable dependency
+		// must surface an error rather than being silently skipped.
+		$this->expectException(ContainerException::class);
+
+		$this->container->make(RequiresValueObject::class);
+	}
+
+	public function testUnionSkipsUnbuildableMemberForABuildableOne(): void
+	{
+		// Building the `ValueObject` member throws; the union must fall
+		// through to the autowirable `FileCache` member instead of failing.
+		$object = $this->container->make(UnionValueObject::class);
+
+		$this->assertInstanceOf(FileCache::class, $object->dep);
 	}
 }

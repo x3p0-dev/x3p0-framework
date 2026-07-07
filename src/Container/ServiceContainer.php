@@ -731,6 +731,16 @@ final class ServiceContainer implements Container
 	 * attributes are matched by presence, so their `null` values are not
 	 * subject to this and are injected as-is.)
 	 *
+	 * A class can exist yet not be auto-wirable — a value object such as
+	 * `WP_Post`, whose own constructor requires a `WP_Post`. Building one
+	 * throws, which means only "this alternative is unsatisfied": the build
+	 * loop records the failure and moves on, so a union still gets to try
+	 * its remaining members. If nothing is satisfiable and the parameter
+	 * carries its own fallback (a default value or a nullable type), the
+	 * failure is swallowed and `null` is returned so resolveFallback()
+	 * supplies the default; otherwise the original build failure is
+	 * re-thrown, preserving its diagnostic chain for a required dependency.
+	 *
 	 * @throws ContainerException
 	 */
 	private function autowireParameter(ReflectionParameter $param): mixed
@@ -740,8 +750,45 @@ final class ServiceContainer implements Container
 		// A registered binding anywhere wins over a class that merely
 		// exists, so every alternative is tried against bindings before
 		// any is built.
-		return $this->firstSatisfied($alternatives, $this->fromBinding(...))
-			?? $this->firstSatisfied($alternatives, $this->byBuilding(...));
+		$bound = $this->firstSatisfied($alternatives, $this->fromBinding(...));
+
+		if ($bound !== null) {
+			return $bound;
+		}
+
+		// Build pass. A candidate that throws leaves the alternative
+		// unsatisfied (so the next one is still tried) while the first
+		// such failure is kept to surface later if needed.
+		$failure = null;
+
+		$built = $this->firstSatisfied(
+			$alternatives,
+			function (string $className) use (&$failure): mixed {
+				if (! class_exists($className)) {
+					return null;
+				}
+
+				try {
+					return $this->make($className);
+				} catch (ContainerException $e) {
+					$failure ??= $e;
+
+					return null;
+				}
+			}
+		);
+
+		if ($built !== null) {
+			return $built;
+		}
+
+		// A genuine build failure is surfaced only for a parameter with no
+		// fallback of its own; an optional one defers to resolveFallback().
+		if ($failure !== null && ! $this->parameterHasFallback($param)) {
+			throw $failure;
+		}
+
+		return null;
 	}
 
 	/**
@@ -779,18 +826,6 @@ final class ServiceContainer implements Container
 	private function fromBinding(string $className): mixed
 	{
 		return $this->registered($className) ? $this->resolve($className) : null;
-	}
-
-	/**
-	 * Build a candidate from an existing class, or `null` when no such
-	 * class exists.
-	 *
-	 * @param  class-string $className
-	 * @throws ContainerException
-	 */
-	private function byBuilding(string $className): mixed
-	{
-		return class_exists($className) ? $this->make($className) : null;
 	}
 
 	/**
@@ -886,6 +921,18 @@ final class ServiceContainer implements Container
 		}
 
 		return true;
+	}
+
+	/**
+	 * Whether a parameter carries a fallback of its own: a default value or
+	 * a nullable type. This is exactly the set of cases resolveFallback()
+	 * satisfies without throwing, so autowiring defers to it rather than
+	 * surfacing a build failure when this is `true`.
+	 */
+	private function parameterHasFallback(ReflectionParameter $param): bool
+	{
+		return $param->isDefaultValueAvailable()
+			|| (bool) $param->getType()?->allowsNull();
 	}
 
 	/**
