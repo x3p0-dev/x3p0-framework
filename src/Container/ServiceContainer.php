@@ -554,9 +554,9 @@ final class ServiceContainer implements Container
 
 	/**
 	 * Build an instance of the given concrete. A closure concrete is treated
-	 * as a factory and invoked as `fn(Container $container, array $parameters):
-	 * object`; a class-name concrete is reflected and instantiated with its
-	 * autowired dependencies.
+	 * as a factory and invoked as `fn(InstanceResolver $resolver, array
+	 * $parameters): object`; a class-name concrete is reflected and
+	 * instantiated with its autowired dependencies.
 	 *
 	 * @param  array<string, mixed> $parameters Named constructor overrides.
 	 * @throws ContainerException

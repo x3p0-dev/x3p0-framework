@@ -22,7 +22,7 @@ use Closure;
  * tagging, deferred resolution, and lifecycle hooks (`resolving()`,
  * `decorate()`) for observing and decorating resolved services.
  */
-interface Container
+interface Container extends InstanceResolver
 {
 	/**
 	 * Register a singleton service (cached instance).
@@ -72,19 +72,6 @@ interface Container
 	public function get(string $abstract): mixed;
 
 	/**
-	 * Resolve a class from the container, optionally overriding constructor
-	 * parameters. Values in `$parameters` are matched by name and take
-	 * precedence over type-based autowiring; remaining parameters are resolved
-	 * from the container. A parameterized resolution is never cached.
-	 *
-	 * @template T of object
-	 * @param    class-string<T>      $abstract
-	 * @param    array<string, mixed> $parameters
-	 * @return   T
-	 */
-	public function make(string $abstract, array $parameters = []): object;
-
-	/**
 	 * Invoke a callable, resolving its parameters from the container.
 	 * Values in `$parameters` are matched by name and take precedence over
 	 * type-based resolution. The array form of `$callback` accepts a
@@ -108,18 +95,18 @@ interface Container
 
 	/**
 	 * Register a callback run after the given abstract is built, before it is
-	 * returned. The callback receives the resolved instance and the container,
+	 * returned. The callback receives the resolved instance and a resolver,
 	 * and is expected to mutate the instance in place. Callbacks run once per
 	 * build, so a resolved singleton is only observed the first time it is
 	 * created.
 	 *
-	 * @param Closure(object, Container): void $callback
+	 * @param Closure(object, InstanceResolver): void $callback
 	 */
 	public function resolving(string $abstract, Closure $callback): void;
 
 	/**
 	 * Register a callback that decorates the given abstract after it is built.
-	 * The callback receives the resolved instance and the container, and must
+	 * The callback receives the resolved instance and a resolver, and must
 	 * return the instance to use in its place — typically a wrapper that adds
 	 * behavior while satisfying the same contract. Though any replacement
 	 * honoring the contract is allowed (a reconfigured copy or an alternative
@@ -128,7 +115,7 @@ interface Container
 	 * resolved or registered, the decorator is applied to the stored instance
 	 * immediately.
 	 *
-	 * @param Closure(object, Container): object $closure
+	 * @param Closure(object, InstanceResolver): object $closure
 	 */
 	public function decorate(string $abstract, Closure $closure): void;
 
