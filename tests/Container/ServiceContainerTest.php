@@ -9,7 +9,9 @@ use X3P0\Framework\Container\ContainerException;
 use X3P0\Framework\Container\NotFoundException;
 use X3P0\Framework\Container\ServiceContainer;
 use X3P0\Framework\Tests\Fixtures\Cache;
+use X3P0\Framework\Tests\Fixtures\CacheCollector;
 use X3P0\Framework\Tests\Fixtures\FileCache;
+use X3P0\Framework\Tests\Fixtures\NullCache;
 use X3P0\Framework\Tests\Fixtures\LoggingCache;
 use X3P0\Framework\Tests\Fixtures\NeedsStatus;
 use X3P0\Framework\Tests\Fixtures\OptionalValueObject;
@@ -83,6 +85,19 @@ final class ServiceContainerTest extends TestCase
 
 		$this->assertCount(1, $tagged);
 		$this->assertInstanceOf(FileCache::class, $tagged[0]);
+	}
+
+	public function testTaggedServicesSpreadIntoAVariadicParameter(): void
+	{
+		$this->container->singleton(FileCache::class);
+		$this->container->singleton(NullCache::class);
+		$this->container->tag([FileCache::class, NullCache::class], 'caches');
+
+		$collector = $this->container->make(CacheCollector::class);
+
+		$this->assertCount(2, $collector->caches);
+		$this->assertInstanceOf(FileCache::class, $collector->caches[0]);
+		$this->assertInstanceOf(NullCache::class, $collector->caches[1]);
 	}
 
 	public function testDecorateWrapsTheResolvedInstance(): void

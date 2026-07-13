@@ -670,7 +670,18 @@ final class ServiceContainer implements Container
 		$dependencies = [];
 
 		foreach ($params as $param) {
-			$dependencies[] = $this->resolveParameter($param, $providedParams);
+			$value = $this->resolveParameter($param, $providedParams);
+
+			// A variadic slot is filled by spreading a resolved
+			// collection across it, so each element arrives as its
+			// own positional argument and PHP enforces the
+			// parameter's type hint on every item. A non-array
+			// value falls through and is passed as-is.
+			if ($param->isVariadic() && is_array($value)) {
+				array_push($dependencies, ...array_values($value));
+			} else {
+				$dependencies[] = $value;
+			}
 		}
 
 		return $dependencies;
