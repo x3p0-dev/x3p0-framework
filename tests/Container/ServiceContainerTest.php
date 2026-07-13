@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace X3P0\Framework\Tests\Container;
 
 use PHPUnit\Framework\TestCase;
+use X3P0\Framework\Container\Attributes\Tagged;
 use X3P0\Framework\Container\ContainerException;
 use X3P0\Framework\Container\NotFoundException;
 use X3P0\Framework\Container\ServiceContainer;
@@ -98,6 +99,21 @@ final class ServiceContainerTest extends TestCase
 		$this->assertCount(2, $collector->caches);
 		$this->assertInstanceOf(FileCache::class, $collector->caches[0]);
 		$this->assertInstanceOf(NullCache::class, $collector->caches[1]);
+	}
+
+	public function testCallSpreadsTaggedServicesIntoAVariadicParameter(): void
+	{
+		$this->container->singleton(FileCache::class);
+		$this->container->singleton(NullCache::class);
+		$this->container->tag([FileCache::class, NullCache::class], 'caches');
+
+		$collected = $this->container->call(
+			fn (FileCache $first, #[Tagged('caches')] Cache ...$caches): array => $caches
+		);
+
+		$this->assertCount(2, $collected);
+		$this->assertInstanceOf(FileCache::class, $collected[0]);
+		$this->assertInstanceOf(NullCache::class, $collected[1]);
 	}
 
 	public function testDecorateWrapsTheResolvedInstance(): void
