@@ -27,6 +27,7 @@ use ReflectionParameter;
 use ReflectionType;
 use ReflectionUnionType;
 use X3P0\Framework\Container\Attributes\ContextualAttribute;
+use X3P0\Framework\Container\Attributes\NoAutowire;
 use X3P0\Framework\Container\Attributes\Singleton;
 
 /**
@@ -703,6 +704,14 @@ final class ServiceContainer implements Container
 
 		if (array_key_exists($name, $providedParams)) {
 			return $providedParams[$name];
+		}
+
+		// A `#[NoAutowire]` marker suppresses type-based autowiring,
+		// deferring to whatever fallback the signature allows: the
+		// parameter's declared default, `null` when it is nullable, or
+		// failure when it has neither.
+		if ($param->getAttributes(NoAutowire::class) !== []) {
+			return $this->resolveFallback($param);
 		}
 
 		// A contextual attribute resolves its own value and takes

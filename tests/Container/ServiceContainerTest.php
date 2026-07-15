@@ -15,6 +15,7 @@ use X3P0\Framework\Tests\Fixtures\FileCache;
 use X3P0\Framework\Tests\Fixtures\NullCache;
 use X3P0\Framework\Tests\Fixtures\LoggingCache;
 use X3P0\Framework\Tests\Fixtures\NeedsStatus;
+use X3P0\Framework\Tests\Fixtures\NoAutowireCache;
 use X3P0\Framework\Tests\Fixtures\OptionalValueObject;
 use X3P0\Framework\Tests\Fixtures\ReportBuilder;
 use X3P0\Framework\Tests\Fixtures\RequiresValueObject;
@@ -179,5 +180,27 @@ final class ServiceContainerTest extends TestCase
 		$object = $this->container->make(UnionValueObject::class);
 
 		$this->assertInstanceOf(FileCache::class, $object->dep);
+	}
+
+	public function testNoAutowireKeepsTheDefaultInsteadOfBuilding(): void
+	{
+		// The `Cache` dependency is autowirable, but `#[NoAutowire]`
+		// suppresses that so the parameter keeps its `null` default.
+		$object = $this->container->make(NoAutowireCache::class);
+
+		$this->assertNull($object->cache);
+	}
+
+	public function testNoAutowireStillYieldsToAnExplicitArgument(): void
+	{
+		// Suppressing autowiring does not block an explicitly provided
+		// argument, which always takes precedence.
+		$cache = new FileCache();
+
+		$object = $this->container->make(NoAutowireCache::class, [
+			'cache' => $cache
+		]);
+
+		$this->assertSame($cache, $object->cache);
 	}
 }

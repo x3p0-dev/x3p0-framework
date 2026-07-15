@@ -11,7 +11,7 @@ A lightweight, modern dependency injection framework for WordPress plugins and t
 
 - **Autowiring container** — resolves constructor dependencies by type, including union and intersection types.
 - **Declarative service providers** — describe bindings, aliases, tags, and bootables with simple class constants; drop to code only when you need it.
-- **Attribute-driven injection** — `#[Get]`, `#[Defer]`, `#[Tagged]`, `#[DeferredTagged]`, and `#[Singleton]` configure resolution right at the point of use.
+- **Attribute-driven injection** — `#[Get]`, `#[Defer]`, `#[Tagged]`, `#[DeferredTagged]`, `#[NoAutowire]`, and `#[Singleton]` configure resolution right at the point of use.
 - **Flexible lifetimes** — singletons, transients, pre-built instances, aliases, and "register only if missing" defaults that extensions can override.
 - **Tagging** — group related services under a label and resolve them together, eagerly or lazily.
 - **Lifecycle hooks** — observe (`resolving()`) or wrap (`decorate()`) services as they are built.
@@ -316,6 +316,7 @@ use X3P0\Framework\Container\Attributes\Get;
 use X3P0\Framework\Container\Attributes\Defer;
 use X3P0\Framework\Container\Attributes\Tagged;
 use X3P0\Framework\Container\Attributes\DeferredTagged;
+use X3P0\Framework\Container\Attributes\NoAutowire;
 
 final class Dashboard
 {
@@ -331,7 +332,12 @@ final class Dashboard
 
         // Inject the tagged services as deferred resolvers, keyed by class,
         // so you build only the ones you actually use.
-        #[DeferredTagged('report.sections')] private readonly array $sections
+        #[DeferredTagged('report.sections')] private readonly array $sections,
+
+        // Skip autowiring so the parameter keeps its default instead of the
+        // container building the type — here, leaving `$user` null rather
+        // than constructing a WP_User.
+        #[NoAutowire] private readonly ?WP_User $user = null
     ) {}
 }
 ```
@@ -342,6 +348,7 @@ final class Dashboard
 | `#[Defer($id)]`           | parameter | a `Closure` that resolves `$id` on each call                            |
 | `#[Tagged($tag)]`         | parameter | an array of the tag's resolved services                                 |
 | `#[DeferredTagged($tag)]` | parameter | `array<class-string, Closure>` of deferred resolvers, keyed by abstract |
+| `#[NoAutowire]`           | parameter | nothing — skips autowiring so the declared default (or `null`) is kept  |
 | `#[Singleton]`            | class     | opts an autowired class into a shared lifetime                          |
 
 You can build your own by implementing `ContextualAttribute`:
