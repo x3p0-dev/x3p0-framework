@@ -95,6 +95,19 @@ final class ServiceContainer implements Container
 	private array $decorators = [];
 
 	/**
+	 * Contextual bindings, keyed by the concrete class being built. Each
+	 * consumer holds two buckets: `params` maps a constructor parameter
+	 * name to a literal value (or a closure computing one), and `types`
+	 * maps a parameter's type to a class-string the container resolves (or
+	 * a closure). Keeping the two kinds separate is what lets resolution
+	 * interpret each without parsing or guessing whether a value is a
+	 * literal or a class.
+	 *
+	 * @var array<string, array{params?: array<string, mixed>, types?: array<string, Closure|string>}>
+	 */
+	private array $contextual = [];
+
+	/**
 	 * @inheritDoc
 	 */
 	public function singleton(string $abstract, mixed $concrete = null): void
@@ -170,6 +183,22 @@ final class ServiceContainer implements Container
 		unset($this->bindings[$alias], $this->instances[$alias]);
 
 		$this->aliases[$alias] = $abstract;
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public function whenNeedsParam(string $consumer, string $param, mixed $value): void
+	{
+		$this->contextual[$consumer]['params'][$param] = $value;
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public function whenNeedsType(string $consumer, string $type, Closure|string $concrete): void
+	{
+		$this->contextual[$consumer]['types'][$type] = $concrete;
 	}
 
 	/**
@@ -586,10 +615,13 @@ final class ServiceContainer implements Container
 				return new $concrete();
 			}
 
-			// Resolve constructor dependencies and create new instance.
+			// Resolve constructor dependencies and create new
+			// instance. The concrete being built is the "consumer"
+			// for any contextual bindings its parameters may match.
 			return $reflector->newInstanceArgs($this->resolveDependencies(
 				$constructor->getParameters(),
-				$parameters
+				$parameters,
+				$concrete
 			));
 		} catch (ReflectionException | Error $e) {
 			throw new ContainerException(
@@ -659,19 +691,21 @@ final class ServiceContainer implements Container
 	}
 
 	/**
-	 * Resolve constructor dependencies.
+	 * Resolve constructor dependencies. `$consumer` is the concrete class
+	 * being built, used to match contextual bindings; it is `null` for a
+	 * free callable resolved through `call()`, which has no consumer.
 	 *
 	 * @param  ReflectionParameter[] $params
 	 * @param  array<string, mixed>  $providedParams
 	 * @return list<mixed>
 	 * @throws ContainerException
 	 */
-	private function resolveDependencies(array $params, array $providedParams): array
+	private function resolveDependencies(array $params, array $providedParams, ?string $consumer = null): array
 	{
 		$dependencies = [];
 
 		foreach ($params as $param) {
-			$value = $this->resolveParameter($param, $providedParams);
+			$value = $this->resolveParameter($param, $providedParams, $consumer);
 
 			// A variadic slot is filled by spreading a resolved
 			// collection across it, so each element arrives as its
@@ -690,14 +724,15 @@ final class ServiceContainer implements Container
 
 	/**
 	 * Resolve a single parameter, in order of precedence: an explicitly
-	 * provided argument, a contextual attribute, autowiring from the
-	 * parameter's type, and finally a fallback to a default value, `null`,
-	 * or failure.
+	 * provided argument, a parameter attribute (`#[NoAutowire]` or a
+	 * contextual attribute), a contextual binding registered for the
+	 * consumer, autowiring from the parameter's type, and finally a
+	 * fallback to a default value, `null`, or failure.
 	 *
 	 * @param  array<string, mixed> $providedParams
 	 * @throws ContainerException
 	 */
-	private function resolveParameter(ReflectionParameter $param, array $providedParams): mixed
+	private function resolveParameter(ReflectionParameter $param, array $providedParams, ?string $consumer = null): mixed
 	{
 		// An explicitly provided argument always wins.
 		$name = $param->getName();
@@ -723,6 +758,40 @@ final class ServiceContainer implements Container
 
 		if ($contextual !== []) {
 			return $contextual[0]->newInstance()->resolve($this);
+		}
+
+		// A contextual binding lets a specific consumer override how a
+		// parameter is supplied: by name (a value the container cannot
+		// autowire, such as a scalar) or by type (a per-consumer
+		// implementation swap). It sits below an explicit argument and
+		// any parameter attribute, but above type-based autowiring.
+		if ($consumer !== null && isset($this->contextual[$consumer])) {
+			$bindings = $this->contextual[$consumer];
+
+			// By name first: the most specific, and the path for a
+			// scalar the container has no other way to supply. The
+			// bound value is passed as-is (or computed, for a
+			// closure) — never resolved as a class, since a name
+			// binding is always a value.
+			if (array_key_exists($name, $bindings['params'] ?? [])) {
+				$give = $bindings['params'][$name];
+
+				return $give instanceof Closure ? $give($this) : $give;
+			}
+
+			// Then by type, limited to a single named, non-builtin
+			// type. A closure is computed; a class-string is
+			// resolved through the container so its own binding,
+			// lifetime, and hooks apply.
+			$type = $this->parameterTypeName($param);
+
+			if ($type !== null && array_key_exists($type, $bindings['types'] ?? [])) {
+				$give = $bindings['types'][$type];
+
+				return $give instanceof Closure
+					? $give($this)
+					: $this->resolve($give);
+			}
 		}
 
 		// A variadic parameter is inherently optional: PHP permits
@@ -952,6 +1021,21 @@ final class ServiceContainer implements Container
 		}
 
 		return true;
+	}
+
+	/**
+	 * Return the name of a parameter's type when it is a single named,
+	 * non-builtin type — the only shape a type-based contextual binding
+	 * matches. A built-in, union, intersection, or untyped parameter
+	 * yields `null`.
+	 */
+	private function parameterTypeName(ReflectionParameter $param): ?string
+	{
+		$type = $param->getType();
+
+		return $type instanceof ReflectionNamedType && ! $type->isBuiltin()
+			? $type->getName()
+			: null;
 	}
 
 	/**

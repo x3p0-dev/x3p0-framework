@@ -13,6 +13,7 @@ A lightweight, modern dependency injection framework for WordPress plugins and t
 - **Declarative service providers** — describe bindings, aliases, tags, and bootables with simple class constants; drop to code only when you need it.
 - **Attribute-driven injection** — `#[Get]`, `#[Defer]`, `#[Tagged]`, `#[DeferredTagged]`, `#[NoAutowire]`, and `#[Singleton]` configure resolution right at the point of use.
 - **Flexible lifetimes** — singletons, transients, pre-built instances, aliases, and "register only if missing" defaults that extensions can override.
+- **Contextual bindings** — give one consumer a different value or implementation than the rest of the app, by parameter name or by type.
 - **Tagging** — group related services under a label and resolve them together, eagerly or lazily.
 - **Lifecycle hooks** — observe (`resolving()`) or wrap (`decorate()`) services as they are built.
 - **WordPress-friendly lifecycle** — register and boot across multiple load phases (`plugins_loaded`, `after_setup_theme`, …).
@@ -29,6 +30,7 @@ A lightweight, modern dependency injection framework for WordPress plugins and t
   - [Resolving services](#resolving-services)
   - [Autowiring](#autowiring)
   - [Attribute-based injection](#attribute-based-injection)
+  - [Contextual bindings](#contextual-bindings)
   - [Tagging](#tagging)
   - [Lifecycle hooks](#lifecycle-hooks)
   - [Introspection](#introspection)
@@ -366,6 +368,28 @@ final class CurrentUser implements ContextualAttribute
     }
 }
 ```
+
+### Contextual bindings
+
+Sometimes a single consumer needs a value that differs from the rest of the app — a scalar the container can't autowire, or a different implementation of an interface. Contextual bindings say "when the container builds *this* class, supply *this* for that parameter." The consumer is the concrete class being built.
+
+Bind **by parameter name** to supply a value the container can't resolve by type (a scalar, an array). The name is given without a leading `$`, and the value is passed as-is — or, if it's a closure, its return value is used:
+
+```php
+$container->whenNeedsParam(Mailer::class, 'apiKey', 'secret');
+$container->whenNeedsParam(Mailer::class, 'timeout',
+    fn ($container) => $container->get('config')->get('mail.timeout'));
+```
+
+Bind **by type** to give one consumer a different implementation than everyone else. The concrete is a class-string resolved through the container (honoring its own binding, lifetime, and hooks), or a closure:
+
+```php
+// Cache resolves to FileCache application-wide, but ExportJob gets RedisCache.
+$container->singleton(Cache::class, FileCache::class);
+$container->whenNeedsType(ExportJob::class, Cache::class, RedisCache::class);
+```
+
+A contextual binding sits below an explicit `make()` override and any parameter attribute, but above ordinary type autowiring — so `make(Mailer::class, ['apiKey' => '…'])` still wins, and a binding registered for one consumer never leaks to another.
 
 ### Tagging
 

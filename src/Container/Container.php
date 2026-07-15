@@ -65,6 +65,28 @@ interface Container extends InstanceResolver
 	public function alias(string $alias, string $abstract): void;
 
 	/**
+	 * Register a contextual binding by parameter name: when the container
+	 * builds `$consumer`, the constructor parameter named `$param` is given
+	 * `$value` instead of being autowired. This is the way to supply a value
+	 * the container cannot resolve by type — a scalar, an array, and so on.
+	 * The value is passed as-is, or, when it is a `Closure(Container): mixed`,
+	 * the closure's return value is used. The parameter name is given without
+	 * a leading `$`.
+	 */
+	public function whenNeedsParam(string $consumer, string $param, mixed $value): void;
+
+	/**
+	 * Register a contextual binding by type: when the container builds
+	 * `$consumer`, a constructor parameter typed `$type` is satisfied by
+	 * `$concrete` instead of the type's usual binding, so one consumer can
+	 * be given a different implementation than the rest of the application.
+	 * The concrete is a class-string resolved through the container (honoring
+	 * its own binding, lifetime, and hooks), or a `Closure(Container): mixed`
+	 * whose return value is used. Only a single, non-builtin type is matched.
+	 */
+	public function whenNeedsType(string $consumer, string $type, Closure|string $concrete): void;
+
+	/**
 	 * Resolve a service from the container by its identifier, returning the
 	 * bound value or an autowired instance. Use `make()` to pass constructor
 	 * overrides or for a guaranteed object return.

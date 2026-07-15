@@ -9,8 +9,11 @@ use X3P0\Framework\Container\Attributes\Tagged;
 use X3P0\Framework\Container\ContainerException;
 use X3P0\Framework\Container\NotFoundException;
 use X3P0\Framework\Container\ServiceContainer;
+use X3P0\Framework\Tests\Fixtures\AlsoNeedsCache;
 use X3P0\Framework\Tests\Fixtures\BareVariadicCollector;
 use X3P0\Framework\Tests\Fixtures\Cache;
+use X3P0\Framework\Tests\Fixtures\NeedsApiKey;
+use X3P0\Framework\Tests\Fixtures\NeedsCache;
 use X3P0\Framework\Tests\Fixtures\CacheCollector;
 use X3P0\Framework\Tests\Fixtures\FileCache;
 use X3P0\Framework\Tests\Fixtures\NullCache;
@@ -214,5 +217,72 @@ final class ServiceContainerTest extends TestCase
 		]);
 
 		$this->assertSame($cache, $object->cache);
+	}
+
+	public function testContextualParamBindingSuppliesAScalar(): void
+	{
+		// Built-in-typed parameters can't be autowired; a name binding
+		// supplies them for this consumer.
+		$this->container->whenNeedsParam(NeedsApiKey::class, 'apiKey', 'secret');
+		$this->container->whenNeedsParam(NeedsApiKey::class, 'timeout', 30);
+
+		$client = $this->container->make(NeedsApiKey::class);
+
+		$this->assertSame('secret', $client->apiKey);
+		$this->assertSame(30, $client->timeout);
+	}
+
+	public function testContextualParamBindingAcceptsAClosure(): void
+	{
+		$this->container->instance('config.timeout', 45);
+		$this->container->whenNeedsParam(NeedsApiKey::class, 'apiKey', 'key');
+
+		// A closure value is computed against the container.
+		$this->container->whenNeedsParam(
+			NeedsApiKey::class,
+			'timeout',
+			fn ($container) => $container->get('config.timeout')
+		);
+
+		$client = $this->container->make(NeedsApiKey::class);
+
+		$this->assertSame(45, $client->timeout);
+	}
+
+	public function testContextualTypeBindingSwapsImplementation(): void
+	{
+		// The interface resolves to NullCache application-wide...
+		$this->container->singleton(Cache::class, NullCache::class);
+
+		// ...but this one consumer is given FileCache instead.
+		$this->container->whenNeedsType(NeedsCache::class, Cache::class, FileCache::class);
+
+		$consumer = $this->container->make(NeedsCache::class);
+
+		$this->assertInstanceOf(FileCache::class, $consumer->cache);
+	}
+
+	public function testContextualBindingIsScopedToItsConsumer(): void
+	{
+		$this->container->singleton(Cache::class, NullCache::class);
+		$this->container->whenNeedsType(NeedsCache::class, Cache::class, FileCache::class);
+
+		// A different consumer of Cache still gets the default binding.
+		$other = $this->container->make(AlsoNeedsCache::class);
+
+		$this->assertInstanceOf(NullCache::class, $other->cache);
+	}
+
+	public function testProvidedArgumentOverridesContextualBinding(): void
+	{
+		// An explicit make() argument outranks a contextual binding.
+		$this->container->whenNeedsParam(NeedsApiKey::class, 'apiKey', 'secret');
+
+		$client = $this->container->make(NeedsApiKey::class, [
+			'apiKey'  => 'override',
+			'timeout' => 10
+		]);
+
+		$this->assertSame('override', $client->apiKey);
 	}
 }
