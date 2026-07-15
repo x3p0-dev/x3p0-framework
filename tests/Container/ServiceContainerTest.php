@@ -9,6 +9,7 @@ use X3P0\Framework\Container\Attributes\Tagged;
 use X3P0\Framework\Container\ContainerException;
 use X3P0\Framework\Container\NotFoundException;
 use X3P0\Framework\Container\ServiceContainer;
+use X3P0\Framework\Tests\Fixtures\BareVariadicCollector;
 use X3P0\Framework\Tests\Fixtures\Cache;
 use X3P0\Framework\Tests\Fixtures\CacheCollector;
 use X3P0\Framework\Tests\Fixtures\FileCache;
@@ -100,6 +101,17 @@ final class ServiceContainerTest extends TestCase
 		$this->assertCount(2, $collector->caches);
 		$this->assertInstanceOf(FileCache::class, $collector->caches[0]);
 		$this->assertInstanceOf(NullCache::class, $collector->caches[1]);
+	}
+
+	public function testBareVariadicResolvesToEmpty(): void
+	{
+		// A variadic with no `#[Tagged]` attribute is inherently optional:
+		// with nothing to fill it, the container passes zero arguments
+		// rather than autowiring a lone instance or failing on the
+		// un-buildable `Cache` interface.
+		$collector = $this->container->make(BareVariadicCollector::class);
+
+		$this->assertSame([], $collector->caches);
 	}
 
 	public function testCallSpreadsTaggedServicesIntoAVariadicParameter(): void

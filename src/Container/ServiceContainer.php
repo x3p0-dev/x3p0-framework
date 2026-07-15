@@ -725,6 +725,17 @@ final class ServiceContainer implements Container
 			return $contextual[0]->newInstance()->resolve($this);
 		}
 
+		// A variadic parameter is inherently optional: PHP permits
+		// calling with zero arguments for it. With no provided value or
+		// contextual attribute (such as `#[Tagged]`) to fill it, the
+		// container contributes an empty set rather than autowiring a
+		// lone instance or failing on an unsatisfiable type. The `[]`
+		// is spread by resolveDependencies() into zero arguments, the
+		// same path a populated collection takes, so it must stay an array.
+		if ($param->isVariadic()) {
+			return [];
+		}
+
 		// Autowire from the type, falling back to a default value, `null`
 		// when the parameter is nullable, or failing.
 		return $this->autowireParameter($param)
