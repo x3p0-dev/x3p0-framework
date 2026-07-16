@@ -12,6 +12,9 @@ use X3P0\Framework\Container\ServiceContainer;
 use X3P0\Framework\Tests\Fixtures\AlsoNeedsCache;
 use X3P0\Framework\Tests\Fixtures\BareVariadicCollector;
 use X3P0\Framework\Tests\Fixtures\Cache;
+use X3P0\Framework\Tests\Fixtures\ConfigurableCache;
+use X3P0\Framework\Tests\Fixtures\MakeConsumer;
+use X3P0\Framework\Tests\Fixtures\MakeUnknownConsumer;
 use X3P0\Framework\Tests\Fixtures\NeedsApiKey;
 use X3P0\Framework\Tests\Fixtures\NeedsCache;
 use X3P0\Framework\Tests\Fixtures\CacheCollector;
@@ -284,5 +287,34 @@ final class ServiceContainerTest extends TestCase
 		]);
 
 		$this->assertSame('override', $client->apiKey);
+	}
+
+	public function testMakeBuildsWithInlineOverrides(): void
+	{
+		$consumer = $this->container->make(MakeConsumer::class);
+
+		$this->assertInstanceOf(ConfigurableCache::class, $consumer->cache);
+		$this->assertSame(3600, $consumer->cache->ttl);
+	}
+
+	public function testMakeWithOverridesBypassesTheSharedInstance(): void
+	{
+		// A shared instance exists with the default TTL...
+		$this->container->singleton(ConfigurableCache::class);
+		$shared = $this->container->get(ConfigurableCache::class);
+
+		// ...but #[Make] with overrides builds a fresh, unshared one.
+		$consumer = $this->container->make(MakeConsumer::class);
+
+		$this->assertNotSame($shared, $consumer->cache);
+		$this->assertSame(3600, $consumer->cache->ttl);
+		$this->assertSame(60, $shared->ttl);
+	}
+
+	public function testMakeThrowsForAnUnknownAbstract(): void
+	{
+		$this->expectException(NotFoundException::class);
+
+		$this->container->make(MakeUnknownConsumer::class);
 	}
 }

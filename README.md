@@ -11,7 +11,7 @@ A lightweight, modern dependency injection framework for WordPress plugins and t
 
 - **Autowiring container** — resolves constructor dependencies by type, including union and intersection types.
 - **Declarative service providers** — describe bindings, aliases, tags, and bootables with simple class constants; drop to code only when you need it.
-- **Attribute-driven injection** — `#[Get]`, `#[Defer]`, `#[Tagged]`, `#[DeferredTagged]`, `#[NoAutowire]`, and `#[Singleton]` configure resolution right at the point of use.
+- **Attribute-driven injection** — `#[Get]`, `#[Defer]`, `#[Tagged]`, `#[DeferredTagged]`, `#[Make]`, `#[NoAutowire]`, and `#[Singleton]` configure resolution right at the point of use.
 - **Flexible lifetimes** — singletons, transients, pre-built instances, aliases, and "register only if missing" defaults that extensions can override.
 - **Contextual bindings** — give one consumer a different value or implementation than the rest of the app, by parameter name or by type.
 - **Tagging** — group related services under a label and resolve them together, eagerly or lazily.
@@ -318,6 +318,7 @@ use X3P0\Framework\Container\Attributes\Get;
 use X3P0\Framework\Container\Attributes\Defer;
 use X3P0\Framework\Container\Attributes\Tagged;
 use X3P0\Framework\Container\Attributes\DeferredTagged;
+use X3P0\Framework\Container\Attributes\Make;
 use X3P0\Framework\Container\Attributes\NoAutowire;
 
 final class Dashboard
@@ -336,6 +337,10 @@ final class Dashboard
         // so you build only the ones you actually use.
         #[DeferredTagged('report.sections')] private readonly array $sections,
 
+        // Build a dependency with inline constructor overrides — a fresh,
+        // unshared instance configured right here.
+        #[Make(TransientCache::class, ['ttl' => 3600])] private readonly Cache $cache,
+
         // Skip autowiring so the parameter keeps its default instead of the
         // container building the type — here, leaving `$user` null rather
         // than constructing a WP_User.
@@ -350,6 +355,7 @@ final class Dashboard
 | `#[Defer($id)]`           | parameter | a `Closure` that resolves `$id` on each call                            |
 | `#[Tagged($tag)]`         | parameter | an array of the tag's resolved services                                 |
 | `#[DeferredTagged($tag)]` | parameter | `array<class-string, Closure>` of deferred resolvers, keyed by abstract |
+| `#[Make($id, $params)]`   | parameter | `make($id, $params)` — a fresh instance built with literal overrides    |
 | `#[NoAutowire]`           | parameter | nothing — skips autowiring so the declared default (or `null`) is kept  |
 | `#[Singleton]`            | class     | opts an autowired class into a shared lifetime                          |
 
