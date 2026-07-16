@@ -28,7 +28,7 @@ final class ServiceProviderTest extends TestCase
 
 	public function testSingletonsConstantRegistersSharedBindings(): void
 	{
-		(new BindingProvider($this->container))->register();
+		(new BindingProvider($this->container))->registerDeclarations();
 
 		$this->assertInstanceOf(FileCache::class, $this->container->get(Cache::class));
 		$this->assertSame(
@@ -39,7 +39,7 @@ final class ServiceProviderTest extends TestCase
 
 	public function testSingletonsConstantSelfBindsNumericEntries(): void
 	{
-		(new BindingProvider($this->container))->register();
+		(new BindingProvider($this->container))->registerDeclarations();
 
 		$this->assertSame(
 			$this->container->get(SharedService::class),
@@ -49,7 +49,7 @@ final class ServiceProviderTest extends TestCase
 
 	public function testTransientsConstantRegistersFreshBindings(): void
 	{
-		(new BindingProvider($this->container))->register();
+		(new BindingProvider($this->container))->registerDeclarations();
 
 		$this->assertNotSame(
 			$this->container->get(TransientService::class),
@@ -59,7 +59,7 @@ final class ServiceProviderTest extends TestCase
 
 	public function testAliasesConstantRegistersAliases(): void
 	{
-		(new BindingProvider($this->container))->register();
+		(new BindingProvider($this->container))->registerDeclarations();
 
 		$this->assertSame(
 			$this->container->get(Cache::class),
@@ -69,7 +69,7 @@ final class ServiceProviderTest extends TestCase
 
 	public function testTagsConstantAssignsTags(): void
 	{
-		(new BindingProvider($this->container))->register();
+		(new BindingProvider($this->container))->registerDeclarations();
 
 		$this->assertCount(2, $this->container->tagged('group'));
 	}
@@ -78,7 +78,7 @@ final class ServiceProviderTest extends TestCase
 	{
 		$this->container->singleton(Cache::class, FileCache::class);
 
-		(new OverridableProvider($this->container))->register();
+		(new OverridableProvider($this->container))->registerDeclarations();
 
 		$this->assertInstanceOf(FileCache::class, $this->container->get(Cache::class));
 	}
@@ -87,7 +87,7 @@ final class ServiceProviderTest extends TestCase
 	{
 		$this->container->singleton(TransientService::class);
 
-		(new OverridableProvider($this->container))->register();
+		(new OverridableProvider($this->container))->registerDeclarations();
 
 		$this->assertSame(
 			$this->container->get(TransientService::class),
@@ -100,7 +100,7 @@ final class ServiceProviderTest extends TestCase
 		$recorder = new Recorder();
 		$this->container->instance(Recorder::class, $recorder);
 
-		(new BootableProvider($this->container))->boot();
+		(new BootableProvider($this->container))->bootDeclarations();
 
 		$this->assertSame(['first', 'second'], $recorder->events);
 	}
@@ -109,6 +109,6 @@ final class ServiceProviderTest extends TestCase
 	{
 		$this->expectException(UnbootableServiceException::class);
 
-		(new UnbootableProvider($this->container))->boot();
+		(new UnbootableProvider($this->container))->bootDeclarations();
 	}
 }

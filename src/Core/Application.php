@@ -172,6 +172,7 @@ abstract class Application implements Bootable
 			$provider = $this->resolveProvider($provider);
 		}
 
+		$provider->registerDeclarations();
 		$provider->register();
 		$this->registeredProviders[$class] = $provider;
 
@@ -240,6 +241,7 @@ abstract class Application implements Bootable
 			return;
 		}
 
+		$provider->bootDeclarations();
 		$provider->boot();
 		$this->bootedProviders[$class] = true;
 	}

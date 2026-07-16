@@ -109,9 +109,11 @@ abstract class ServiceProvider implements Bootable
 	 * Registers the bindings listed in the `SINGLETONS`, `SINGLETONS_IF`,
 	 * `TRANSIENTS`, and `TRANSIENTS_IF` constants, assigns each tag listed
 	 * in the `TAGS` constant, and registers each alias in the `ALIASES`
-	 * constant. Override and call `parent::register()` to add custom bindings.
+	 * constant. The application calls this before `register()`, so the
+	 * declared bindings are always processed regardless of what a subclass
+	 * does in `register()`.
 	 */
-	public function register(): void
+	final public function registerDeclarations(): void
 	{
 		$this->registerBindings(static::SINGLETONS,    $this->container->singleton(...));
 		$this->registerBindings(static::SINGLETONS_IF, $this->container->singletonIf(...));
@@ -126,6 +128,14 @@ abstract class ServiceProvider implements Bootable
 			$this->container->tag($abstracts, $tag);
 		}
 	}
+
+	/**
+	 * Override to register custom bindings that cannot be expressed with
+	 * the class constants (such as closure factories). Runs after the
+	 * declared bindings.
+	 */
+	public function register(): void
+	{}
 
 	/**
 	 * Registers a map of bindings with the given container binder. A
@@ -144,12 +154,13 @@ abstract class ServiceProvider implements Bootable
 
 	/**
 	 * Resolves and boots each abstract listed in the `BOOTABLE` constant.
-	 * Override and call `parent::boot()` to add custom boot logic.
+	 * The application calls this before `boot()`, so the declared services
+	 * are always booted regardless of what a subclass does in `boot()`.
 	 *
 	 * @throws UnbootableServiceException If a `BOOTABLE` entry does not
 	 *         implement `Bootable`.
 	 */
-	public function boot(): void
+	final public function bootDeclarations(): void
 	{
 		foreach (static::BOOTABLE as $abstract) {
 			$service = $this->container->get($abstract);
@@ -166,4 +177,11 @@ abstract class ServiceProvider implements Bootable
 			$service->boot();
 		}
 	}
+
+	/**
+	 * Override to add custom boot logic. Runs after the services listed in
+	 * the `BOOTABLE` constant.
+	 */
+	public function boot(): void
+	{}
 }
