@@ -221,6 +221,15 @@ final class ServiceContainer implements Container
 
 	/**
 	 * @inheritDoc
+	 * @throws ContainerException
+	 */
+	public function makeFresh(string $abstract, array $parameters = []): object
+	{
+		return $this->resolve($abstract, $parameters, fresh: true);
+	}
+
+	/**
+	 * @inheritDoc
 	 * @throws ContainerException|ReflectionException
 	 */
 	public function call(callable|array $callback, array $parameters = []): mixed
@@ -371,12 +380,16 @@ final class ServiceContainer implements Container
 
 	/**
 	 * Resolve a service from the container, optionally with named constructor
-	 * overrides. A parameterized resolution is never cached.
+	 * overrides. A parameterized resolution is never cached. When `$fresh`
+	 * is `true`, any cached singleton is ignored and left untouched: a new
+	 * instance is built and not stored. Freshness applies only to this
+	 * abstract — it follows delegation to a bound concrete but is not passed
+	 * on to the abstract's own dependencies, which resolve normally.
 	 *
 	 * @param  array<string, mixed> $parameters
 	 * @throws ContainerException
 	 */
-	private function resolve(string $abstract, array $parameters = []): mixed
+	private function resolve(string $abstract, array $parameters = [], bool $fresh = false): mixed
 	{
 		// Follow any alias to its target up front so caching, circular
 		// dependency tracking, and binding lookups all key off the
@@ -384,9 +397,9 @@ final class ServiceContainer implements Container
 		$abstract = $this->getAlias($abstract);
 
 		// Return cached instance if it exists and no parameters are
-		// provided. Note that singletons are cached as instances once
-		// they are resolved.
-		if (array_key_exists($abstract, $this->instances) && $parameters === []) {
+		// provided, unless a fresh instance was requested. Note that
+		// singletons are cached as instances once they are resolved.
+		if (! $fresh && array_key_exists($abstract, $this->instances) && $parameters === []) {
 			return $this->instances[$abstract];
 		}
 
@@ -428,7 +441,10 @@ final class ServiceContainer implements Container
 				&& $concrete !== $abstract
 				&& ($this->registered($concrete) || class_exists($concrete))
 			) {
-				$service = $this->resolve($concrete, $parameters);
+				// Delegation targets the same logical entity,
+				// so a fresh request carries through; the concrete
+				// is what actually gets built anew.
+				$service = $this->resolve($concrete, $parameters, $fresh);
 			} else {
 				// If we can't build an object, throw an exception.
 				// Distinguish between an unknown identifier and a
@@ -470,7 +486,7 @@ final class ServiceContainer implements Container
 				$shared = $shared || $this->declaresSingleton($concrete);
 			}
 
-			if ($shared && $parameters === []) {
+			if ($shared && $parameters === [] && ! $fresh) {
 				$this->instances[$abstract] = $service;
 			}
 

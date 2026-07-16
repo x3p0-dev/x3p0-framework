@@ -13,8 +13,8 @@ use X3P0\Framework\Tests\Fixtures\AlsoNeedsCache;
 use X3P0\Framework\Tests\Fixtures\BareVariadicCollector;
 use X3P0\Framework\Tests\Fixtures\Cache;
 use X3P0\Framework\Tests\Fixtures\ConfigurableCache;
-use X3P0\Framework\Tests\Fixtures\MakeConsumer;
-use X3P0\Framework\Tests\Fixtures\MakeUnknownConsumer;
+use X3P0\Framework\Tests\Fixtures\MakeFreshConsumer;
+use X3P0\Framework\Tests\Fixtures\MakeFreshUnknownConsumer;
 use X3P0\Framework\Tests\Fixtures\NeedsApiKey;
 use X3P0\Framework\Tests\Fixtures\NeedsCache;
 use X3P0\Framework\Tests\Fixtures\CacheCollector;
@@ -289,32 +289,72 @@ final class ServiceContainerTest extends TestCase
 		$this->assertSame('override', $client->apiKey);
 	}
 
-	public function testMakeBuildsWithInlineOverrides(): void
+	public function testMakeFreshBuildsANewInstanceIgnoringTheSingletonCache(): void
 	{
-		$consumer = $this->container->make(MakeConsumer::class);
+		$this->container->singleton(FileCache::class);
+		$shared = $this->container->get(FileCache::class);
+
+		$fresh = $this->container->makeFresh(FileCache::class);
+
+		// A new instance is returned, and the cached singleton is left
+		// untouched — resolving normally still yields the original.
+		$this->assertNotSame($shared, $fresh);
+		$this->assertSame($shared, $this->container->get(FileCache::class));
+	}
+
+	public function testMakeFreshKeepsDependenciesShared(): void
+	{
+		// Freshness is shallow: NeedsCache is built anew, but the Cache
+		// singleton it depends on is still the shared instance.
+		$this->container->singleton(Cache::class, NullCache::class);
+		$shared = $this->container->make(NeedsCache::class);
+
+		$fresh = $this->container->makeFresh(NeedsCache::class);
+
+		$this->assertNotSame($shared, $fresh);
+		$this->assertSame($shared->cache, $fresh->cache);
+	}
+
+	public function testMakeFreshFollowsDelegationToTheConcrete(): void
+	{
+		// Resolving the interface delegates to FileCache; makeFresh builds
+		// a fresh concrete while leaving the shared concrete in place.
+		$this->container->singleton(Cache::class, FileCache::class);
+		$shared = $this->container->get(Cache::class);
+
+		$fresh = $this->container->makeFresh(Cache::class);
+
+		$this->assertInstanceOf(FileCache::class, $fresh);
+		$this->assertNotSame($shared, $fresh);
+		$this->assertSame($shared, $this->container->get(Cache::class));
+	}
+
+	public function testMakeFreshAttributeBuildsWithInlineOverrides(): void
+	{
+		$consumer = $this->container->make(MakeFreshConsumer::class);
 
 		$this->assertInstanceOf(ConfigurableCache::class, $consumer->cache);
 		$this->assertSame(3600, $consumer->cache->ttl);
 	}
 
-	public function testMakeWithOverridesBypassesTheSharedInstance(): void
+	public function testMakeFreshAttributeBypassesTheSharedInstance(): void
 	{
 		// A shared instance exists with the default TTL...
 		$this->container->singleton(ConfigurableCache::class);
 		$shared = $this->container->get(ConfigurableCache::class);
 
-		// ...but #[Make] with overrides builds a fresh, unshared one.
-		$consumer = $this->container->make(MakeConsumer::class);
+		// ...but #[MakeFresh] builds a fresh, unshared one.
+		$consumer = $this->container->make(MakeFreshConsumer::class);
 
 		$this->assertNotSame($shared, $consumer->cache);
 		$this->assertSame(3600, $consumer->cache->ttl);
 		$this->assertSame(60, $shared->ttl);
 	}
 
-	public function testMakeThrowsForAnUnknownAbstract(): void
+	public function testMakeFreshAttributeThrowsForAnUnknownAbstract(): void
 	{
 		$this->expectException(NotFoundException::class);
 
-		$this->container->make(MakeUnknownConsumer::class);
+		$this->container->make(MakeFreshUnknownConsumer::class);
 	}
 }
