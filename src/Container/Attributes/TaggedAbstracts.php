@@ -37,7 +37,7 @@ final class TaggedAbstracts implements ContextualAttribute
 	/**
 	 * Resolves to the array of services assigned to the tag.
 	 *
-	 * @return array<object>
+	 * @return array<string>
 	 */
 	public function resolve(Container $container): array
 	{
