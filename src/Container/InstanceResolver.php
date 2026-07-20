@@ -34,4 +34,20 @@ interface InstanceResolver
 	 * @return   T
 	 */
 	public function make(string $abstract, array $parameters = []): object;
+
+	/**
+	 * Resolve a fresh, unshared instance of the abstract, bypassing any
+	 * cached singleton. Unlike `make()`, a matching cached instance is
+	 * neither returned nor overwritten — the shared instance is left in
+	 * place and a newly built one is returned. Only the requested abstract
+	 * is built anew; its own dependencies resolve normally, so shared
+	 * singletons deeper in the graph stay shared. Overrides in `$parameters`
+	 * are matched by name, as `make()` does.
+	 *
+	 * @template T of object
+	 * @param    class-string<T>      $abstract
+	 * @param    array<string, mixed> $parameters
+	 * @return   T
+	 */
+	public function makeFresh(string $abstract, array $parameters = []): object;
 }

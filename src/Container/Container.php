@@ -117,19 +117,6 @@ interface Container extends InstanceResolver
 	public function get(string $abstract): mixed;
 
 	/**
-	 * Resolve a fresh, unshared instance of the abstract, bypassing any
-	 * cached singleton. Unlike `make()`, a matching cached instance is
-	 * neither returned nor overwritten — the shared instance is left in
-	 * place and a newly built one is returned. Only the requested abstract
-	 * is built anew; its own dependencies resolve normally, so shared
-	 * singletons deeper in the graph stay shared. Overrides in `$parameters`
-	 * are matched by name, as `make()` does.
-	 *
-	 * @param array<string, mixed> $parameters
-	 */
-	public function makeFresh(string $abstract, array $parameters = []): object;
-
-	/**
 	 * Invoke a callable, resolving its parameters from the container.
 	 * Values in `$parameters` are matched by name and take precedence over
 	 * type-based resolution. The array form of `$callback` accepts a
