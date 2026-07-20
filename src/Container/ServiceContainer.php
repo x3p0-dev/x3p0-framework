@@ -57,6 +57,13 @@ final class ServiceContainer implements Container
 	protected array $tags = [];
 
 	/**
+	 * Maps a tag name and abstract to the attributes it was tagged with.
+	 *
+	 * @var array<string, array<string, array<string, mixed>>>
+	 */
+	protected array $tagAttributes = [];
+
+	/**
 	 * Maps an alias to the abstract it points at. Aliases are followed
 	 * transitively when an identifier is resolved.
 	 *
@@ -326,11 +333,15 @@ final class ServiceContainer implements Container
 	/**
 	 * @inheritDoc
 	 */
-	public function tag(string|array $abstracts, string $tag): void
+	public function tag(string|array $abstracts, string $tag, array $attributes = []): void
 	{
 		foreach ((array) $abstracts as $abstract) {
 			if (! in_array($abstract, $this->tags[$tag] ?? [], true)) {
 				$this->tags[$tag][] = $abstract;
+			}
+
+			if ($attributes !== []) {
+				$this->tagAttributes[$tag][$abstract] = $attributes;
 			}
 		}
 	}
@@ -348,6 +359,10 @@ final class ServiceContainer implements Container
 			$this->tags[$tag],
 			(array) $abstracts
 		));
+
+		foreach ((array) $abstracts as $abstract) {
+			unset($this->tagAttributes[$tag][$abstract]);
+		}
 	}
 
 	/**
@@ -360,6 +375,24 @@ final class ServiceContainer implements Container
 			fn (string $abstract): mixed => $this->resolve($abstract),
 			$this->tags[$tag] ?? []
 		);
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public function taggedMap(string $tag, string $attribute): array
+	{
+		$map = [];
+
+		foreach ($this->tags[$tag] ?? [] as $abstract) {
+			$value = $this->tagAttributes[$tag][$abstract][$attribute] ?? null;
+
+			if ($value !== null) {
+				$map[$value] = $abstract;
+			}
+		}
+
+		return $map;
 	}
 
 	/**

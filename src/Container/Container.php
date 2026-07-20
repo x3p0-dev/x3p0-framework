@@ -189,7 +189,7 @@ interface Container extends InstanceResolver
 	 *
 	 * @param string|array<string> $abstracts
 	 */
-	public function tag(string|array $abstracts, string $tag): void;
+	public function tag(string|array $abstracts, string $tag, array $attributes = []): void;
 
 	/**
 	 * Remove one or more abstracts from a tag, leaving the rest in place.
@@ -204,6 +204,20 @@ interface Container extends InstanceResolver
 	 * @return array<object>
 	 */
 	public function tagged(string $tag): array;
+
+	/**
+	 * Returns a map from a chosen attribute's value to its abstract, for
+	 * every member of `$tag` that was given that attribute. Building this
+	 * map never constructs a service — it only reads the attributes
+	 * recorded at tag() time — so it's suited to a large tag group where
+	 * just one member will actually be resolved:
+	 *
+	 *   $bySlug   = $container->taggedMap(Markup::TAG, 'slug');
+	 *   $instance = $container->make($bySlug[$slug]);
+	 *
+	 * @return array<mixed, string>
+	 */
+	public function taggedMap(string $tag, string $attribute): array;
 
 	/**
 	 * Return the abstracts assigned to the given tag without resolving them,
