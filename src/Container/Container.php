@@ -206,6 +206,22 @@ interface Container extends InstanceResolver
 	public function tagged(string $tag): array;
 
 	/**
+	 * Resolve every abstract assigned to a given tag and with a specific
+	 * attribute defined.
+	 */
+	public function taggedWith(string $tag, string $attribute): array;
+
+	/**
+	 * Return the abstracts assigned to the given tag without resolving them,
+	 * for inspection or lazy resolution. The order matches assignment order,
+	 * and an unknown tag yields an empty array.
+	 *
+	 * @return array<string>
+	 */
+	public function taggedAbstracts(string $tag): array;
+
+
+	/**
 	 * Returns a map from a chosen attribute's value to its abstract, for
 	 * every member of `$tag` that was given that attribute. Building this
 	 * map never constructs a service — it only reads the attributes
@@ -217,16 +233,7 @@ interface Container extends InstanceResolver
 	 *
 	 * @return array<mixed, string>
 	 */
-	public function taggedMap(string $tag, string $attribute): array;
-
-	/**
-	 * Return the abstracts assigned to the given tag without resolving them,
-	 * for inspection or lazy resolution. The order matches assignment order,
-	 * and an unknown tag yields an empty array.
-	 *
-	 * @return array<string>
-	 */
-	public function taggedAbstracts(string $tag): array;
+	public function taggedAbstractsWith(string $tag, string $attribute): array;
 
 	/**
 	 * Check whether any abstracts are currently assigned to the given tag. A

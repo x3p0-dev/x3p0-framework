@@ -379,8 +379,9 @@ final class ServiceContainer implements Container
 
 	/**
 	 * @inheritDoc
+	 * @throws ContainerException
 	 */
-	public function taggedMap(string $tag, string $attribute): array
+	public function taggedWith(string $tag, string $attribute): array
 	{
 		$map = [];
 
@@ -388,7 +389,7 @@ final class ServiceContainer implements Container
 			$value = $this->tagAttributes[$tag][$abstract][$attribute] ?? null;
 
 			if ($value !== null) {
-				$map[$value] = $abstract;
+				$map[$value] = $this->resolve($abstract);
 			}
 		}
 
@@ -401,6 +402,24 @@ final class ServiceContainer implements Container
 	public function taggedAbstracts(string $tag): array
 	{
 		return $this->tags[$tag] ?? [];
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public function taggedAbstractsWith(string $tag, string $attribute): array
+	{
+		$map = [];
+
+		foreach ($this->tags[$tag] ?? [] as $abstract) {
+			$value = $this->tagAttributes[$tag][$abstract][$attribute] ?? null;
+
+			if ($value !== null) {
+				$map[$value] = $abstract;
+			}
+		}
+
+		return $map;
 	}
 
 	/**

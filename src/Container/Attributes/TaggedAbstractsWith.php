@@ -1,7 +1,7 @@
 <?php
 
 /**
- * Tagged map attribute.
+ * Tagged abstracts with attribute.
  *
  * @author    Justin Tadlock <justintadlock@gmail.com>
  * @copyright Copyright (c) 2025, Justin Tadlock
@@ -28,10 +28,10 @@ use X3P0\Framework\Container\Container;
  *         #[TaggedMap('channel', 'slug')] private readonly array $channels
  *     ) {}
  *
- *     $instance = $this->container->make($this->markupBySlug[$slug]);
+ *     $instance = $this->container->make($this->channels[$slug]);
  */
 #[Attribute(Attribute::TARGET_PARAMETER)]
-final class TaggedMap implements ContextualAttribute
+final class TaggedAbstractsWith implements ContextualAttribute
 {
 	/**
 	 * Stores the tag to map and the attribute whose value keys the map.
@@ -49,6 +49,6 @@ final class TaggedMap implements ContextualAttribute
 	 */
 	public function resolve(Container $container): array
 	{
-		return $container->taggedMap($this->tag, $this->attribute);
+		return $container->taggedAbstractsWith($this->tag, $this->attribute);
 	}
 }

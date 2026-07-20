@@ -1,7 +1,7 @@
 <?php
 
 /**
- * Deferred tagged map attribute.
+ * Deferred tagged with attribute.
  *
  * @author    Justin Tadlock <justintadlock@gmail.com>
  * @copyright Copyright (c) 2025, Justin Tadlock
@@ -21,7 +21,7 @@ use X3P0\Framework\Container\Container;
  * Injects the services assigned to a container tag as an array of deferred
  * resolvers, keyed by a chosen attribute's value rather than by abstract —
  * combining `Container::taggedMap()` with `Container::defer()`. Like
- * `TaggedMap`, this lets a consumer look up a single tagged service by a
+ * `TaggedWith`, this lets a consumer look up a single tagged service by a
  * value it already knows (a slug, say) instead of an abstract identifier;
  * like `DeferredTagged`, the lookup yields a closure rather than a built
  * instance, so nothing is constructed until the consumer calls it. This
@@ -33,13 +33,13 @@ use X3P0\Framework\Container\Container;
  *         #[DeferredTaggedMap('channel', 'slug')] private readonly array $channels
  *     ) {}
  *
- *     $markup = ($this->markupBySlug[$slug])();
+ *     $markup = ($this->channels[$slug])();
  *
  * Whether each call yields a fresh or shared instance follows the binding's
  * lifetime, exactly as `Container::defer()` does.
  */
 #[Attribute(Attribute::TARGET_PARAMETER)]
-final class DeferredTaggedMap implements ContextualAttribute
+final class DeferredTaggedWith implements ContextualAttribute
 {
 	/**
 	 * Stores the tag to map and the attribute whose value keys the map.
@@ -57,11 +57,9 @@ final class DeferredTaggedMap implements ContextualAttribute
 	 */
 	public function resolve(Container $container): array
 	{
-		$map = $container->taggedMap($this->tag, $this->attribute);
-
 		return array_map(
 			fn (string $abstract): Closure => $container->defer($abstract),
-			$map
+			$container->taggedAbstractsWith($this->tag, $this->attribute)
 		);
 	}
 }
