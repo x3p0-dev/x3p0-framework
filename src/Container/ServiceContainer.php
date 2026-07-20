@@ -26,6 +26,7 @@ use ReflectionNamedType;
 use ReflectionParameter;
 use ReflectionType;
 use ReflectionUnionType;
+use UnitEnum;
 use X3P0\Framework\Container\Attributes\ContextualAttribute;
 use X3P0\Framework\Container\Attributes\NoAutowire;
 use X3P0\Framework\Container\Attributes\Singleton;
@@ -113,6 +114,14 @@ final class ServiceContainer implements Container
 	 * @var array<string, array{params?: array<string, mixed>, types?: array<string, Closure|string>}>
 	 */
 	private array $contextual = [];
+
+	/**
+	 * Stores named parameter values available to any consumer that has a
+	 * matching parameter name and can't otherwise be autowired.
+	 *
+	 * @var array<string, array|bool|string|int|float|UnitEnum|null>
+	 */
+	protected array $params = [];
 
 	/**
 	 * @inheritDoc
@@ -206,6 +215,38 @@ final class ServiceContainer implements Container
 	public function whenNeedsType(string $consumer, string $type, Closure|string $concrete): void
 	{
 		$this->contextual[$consumer]['types'][$type] = $concrete;
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public function setParam(string $parameter, array|bool|string|int|float|\UnitEnum|null $value): void
+	{
+		$this->params[$parameter] = $value;
+	}
+
+	/**
+	 * @inheritDoc
+	 * @throws NotFoundException
+	 */
+	public function getParam(string $parameter): array|bool|string|int|float|UnitEnum|null
+	{
+		if (! $this->hasParam($parameter)) {
+			throw new NotFoundException(esc_html(sprintf(
+				'Parameter "%s" is not set.',
+				$parameter
+			)));
+		}
+
+		return $this->params[$parameter];
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public function hasParam(string $parameter): bool
+	{
+		return array_key_exists($parameter, $this->params);
 	}
 
 	/**
@@ -825,7 +866,15 @@ final class ServiceContainer implements Container
 		);
 
 		if ($contextual !== []) {
-			return $contextual[0]->newInstance()->resolve($this);
+			try {
+				return $contextual[0]->newInstance()->resolve($this);
+			} catch (NotFoundException $e) {
+				if ($this->parameterHasFallback($param)) {
+					return $this->resolveFallback($param);
+				}
+
+				throw $e;
+			}
 		}
 
 		// A contextual binding lets a specific consumer override how a

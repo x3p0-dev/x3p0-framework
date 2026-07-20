@@ -14,6 +14,7 @@ declare(strict_types=1);
 namespace X3P0\Framework\Container;
 
 use Closure;
+use UnitEnum;
 
 /**
  * Defines the dependency injection container interface. It binds concrete
@@ -85,6 +86,28 @@ interface Container extends InstanceResolver
 	 * whose return value is used. Only a single, non-builtin type is matched.
 	 */
 	public function whenNeedsType(string $consumer, string $type, Closure|string $concrete): void;
+
+	/**
+	 * Sets a container-backed named parameter value. A parameter set this
+	 * way is available to any constructor parameter explicitly marked with
+	 * the `#[Param]` attribute and sharing the same name.
+	 *
+	 * Calling this again for an already-set `$parameter` overwrites the
+	 * previous value.
+	 */
+	public function setParam(string $parameter, array|bool|string|int|float|UnitEnum|null $value): void;
+
+	/**
+	 * Gets a previously set container parameter value.
+	 *
+	 * @throws NotFoundException When no value has been set for `$parameter`.
+	 */
+	public function getParam(string $parameter): array|bool|string|int|float|UnitEnum|null;
+
+	/**
+	 * Whether a value has been set for the given parameter name.
+	 */
+	public function hasParam(string $parameter): bool;
 
 	/**
 	 * Resolve a service from the container by its identifier, returning the
