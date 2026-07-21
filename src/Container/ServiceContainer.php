@@ -271,7 +271,7 @@ final class ServiceContainer implements Container
 	 * @inheritDoc
 	 * @throws ContainerException
 	 */
-	public function makeFresh(string $abstract, array $parameters = []): object
+	public function build(string $abstract, array $parameters = []): object
 	{
 		return $this->resolve($abstract, $parameters, fresh: true);
 	}
@@ -558,7 +558,7 @@ final class ServiceContainer implements Container
 				}
 
 				// Build the object.
-				$service = $this->build($concrete, $parameters);
+				$service = $this->instantiate($concrete, $parameters);
 			}
 
 			// Apply any decorators registered for this abstract. Each
@@ -692,15 +692,15 @@ final class ServiceContainer implements Container
 	}
 
 	/**
-	 * Build an instance of the given concrete. A closure concrete is treated
-	 * as a factory and invoked as `fn(InstanceResolver $resolver, array
+	 * Instantiate the given concrete. A closure concrete is treated as a
+	 * factory and invoked as `fn(InstanceResolver $resolver, array
 	 * $parameters): object`; a class-name concrete is reflected and
 	 * instantiated with its autowired dependencies.
 	 *
 	 * @param  array<string, mixed> $parameters Named constructor overrides.
 	 * @throws ContainerException
 	 */
-	private function build(Closure|string $concrete, array $parameters = []): object
+	private function instantiate(Closure|string $concrete, array $parameters = []): object
 	{
 		// If concrete is a closure, invoke it. Exceptions thrown by a
 		// user-supplied factory propagate as-is.

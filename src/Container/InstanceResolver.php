@@ -49,5 +49,5 @@ interface InstanceResolver
 	 * @param    array<string, mixed> $parameters
 	 * @return   T
 	 */
-	public function makeFresh(string $abstract, array $parameters = []): object;
+	public function build(string $abstract, array $parameters = []): object;
 }

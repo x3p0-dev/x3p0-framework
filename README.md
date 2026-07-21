@@ -11,7 +11,7 @@ A lightweight, modern dependency injection framework for WordPress plugins and t
 
 - **Autowiring container** — resolves constructor dependencies by type, including union and intersection types.
 - **Declarative service providers** — describe bindings, aliases, tags, and bootables with simple class constants; drop to code only when you need it.
-- **Attribute-driven injection** — `#[Get]`, `#[Defer]`, `#[Tagged]`, `#[DeferTagged]`, `#[MakeFresh]`, `#[NoAutowire]`, and `#[Singleton]` configure resolution right at the point of use.
+- **Attribute-driven injection** — `#[Get]`, `#[Defer]`, `#[Tagged]`, `#[DeferTagged]`, `#[Build]`, `#[NoAutowire]`, and `#[Singleton]` configure resolution right at the point of use.
 - **Flexible lifetimes** — singletons, transients, pre-built instances, aliases, and "register only if missing" defaults that extensions can override.
 - **Contextual bindings** — give one consumer a different value or implementation than the rest of the app, by parameter name or by type.
 - **Tagging** — group related services under a label and resolve them together, eagerly or lazily.
@@ -323,7 +323,7 @@ use X3P0\Framework\Container\Attributes\Get;
 use X3P0\Framework\Container\Attributes\Defer;
 use X3P0\Framework\Container\Attributes\Tagged;
 use X3P0\Framework\Container\Attributes\DeferTagged;
-use X3P0\Framework\Container\Attributes\MakeFresh;
+use X3P0\Framework\Container\Attributes\Build;
 use X3P0\Framework\Container\Attributes\NoAutowire;
 
 final class Dashboard
@@ -344,7 +344,7 @@ final class Dashboard
 
         // Build a fresh, unshared instance with inline constructor
         // overrides — a private copy configured right here.
-        #[MakeFresh(TransientCache::class, ['ttl' => 3600])] private readonly Cache $cache,
+        #[Build(TransientCache::class, ['ttl' => 3600])] private readonly Cache $cache,
 
         // Skip autowiring so the parameter keeps its default instead of the
         // container building the type — here, leaving `$user` null rather
@@ -360,7 +360,7 @@ final class Dashboard
 | `#[Defer($id)]`           | parameter | a `Closure` that resolves `$id` on each call                            |
 | `#[Tagged($tag)]`         | parameter | an array of the tag's resolved services                                 |
 | `#[DeferTagged($tag)]` | parameter | `array<class-string, Closure>` of deferred resolvers, keyed by abstract |
-| `#[MakeFresh($id, $params)]` | parameter | `makeFresh($id, $params)` — a fresh, unshared instance with literal overrides |
+| `#[Build($id, $params)]` | parameter | `build($id, $params)` — a fresh, unshared instance with literal overrides |
 | `#[NoAutowire]`           | parameter | nothing — skips autowiring so the declared default (or `null`) is kept  |
 | `#[Singleton]`            | class     | opts an autowired class into a shared lifetime                          |
 

@@ -1,7 +1,7 @@
 <?php
 
 /**
- * MakeFresh attribute.
+ * Build attribute.
  *
  * @author    Justin Tadlock <justintadlock@gmail.com>
  * @copyright Copyright (c) 2025, Justin Tadlock
@@ -17,14 +17,14 @@ use Attribute;
 use X3P0\Framework\Container\Container;
 
 /**
- * Builds a fresh, unshared service, mirroring `Container::makeFresh()`. The
+ * Builds a fresh, unshared service, mirroring `InstanceResolver::build()`. The
  * built instance bypasses any cached singleton — the shared instance (if any)
  * is left in place and a newly built one is injected. Use it to give a single
  * consumer its own private copy of a service, optionally configured with inline
  * constructor overrides:
  *
  *     public function __construct(
- *         #[MakeFresh(TransientCache::class, ['ttl' => 3600])] Cache $cache
+ *         #[Build(TransientCache::class, ['ttl' => 3600])] Cache $cache
  *     ) {}
  *
  * The overrides are attribute arguments, so they are limited to compile-time
@@ -33,7 +33,7 @@ use X3P0\Framework\Container\Container;
  * binding instead.
  */
 #[Attribute(Attribute::TARGET_PARAMETER)]
-final class MakeFresh implements ContextualAttribute
+final class Build implements ContextualAttribute
 {
 	/**
 	 * Stores the identifier to build and the constructor overrides to pass.
@@ -42,7 +42,7 @@ final class MakeFresh implements ContextualAttribute
 	 */
 	public function __construct(
 		private readonly string $abstract,
-		private readonly array $parameters = []
+		private readonly array  $parameters = []
 	) {}
 
 	/**
@@ -50,6 +50,6 @@ final class MakeFresh implements ContextualAttribute
 	 */
 	public function resolve(Container $container): object
 	{
-		return $container->makeFresh($this->abstract, $this->parameters);
+		return $container->build($this->abstract, $this->parameters);
 	}
 }

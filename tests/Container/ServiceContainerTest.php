@@ -294,7 +294,7 @@ final class ServiceContainerTest extends TestCase
 		$this->container->singleton(FileCache::class);
 		$shared = $this->container->get(FileCache::class);
 
-		$fresh = $this->container->makeFresh(FileCache::class);
+		$fresh = $this->container->build(FileCache::class);
 
 		// A new instance is returned, and the cached singleton is left
 		// untouched — resolving normally still yields the original.
@@ -309,7 +309,7 @@ final class ServiceContainerTest extends TestCase
 		$this->container->singleton(Cache::class, NullCache::class);
 		$shared = $this->container->make(NeedsCache::class);
 
-		$fresh = $this->container->makeFresh(NeedsCache::class);
+		$fresh = $this->container->build(NeedsCache::class);
 
 		$this->assertNotSame($shared, $fresh);
 		$this->assertSame($shared->cache, $fresh->cache);
@@ -322,7 +322,7 @@ final class ServiceContainerTest extends TestCase
 		$this->container->singleton(Cache::class, FileCache::class);
 		$shared = $this->container->get(Cache::class);
 
-		$fresh = $this->container->makeFresh(Cache::class);
+		$fresh = $this->container->build(Cache::class);
 
 		$this->assertInstanceOf(FileCache::class, $fresh);
 		$this->assertNotSame($shared, $fresh);
