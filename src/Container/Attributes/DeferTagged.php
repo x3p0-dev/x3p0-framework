@@ -1,7 +1,7 @@
 <?php
 
 /**
- * Deferred tagged attribute.
+ * Defer tagged attribute.
  *
  * @author    Justin Tadlock <justintadlock@gmail.com>
  * @copyright Copyright (c) 2025, Justin Tadlock
@@ -26,7 +26,7 @@ use X3P0\Framework\Container\Container;
  * container itself. Pair it with an `iterable` or `array` parameter type:
  *
  *     public function __construct(
- *         #[DeferredTagged('theme.blocks')] iterable $blocks
+ *         #[DeferTagged('theme.blocks')] iterable $blocks
  *     ) {}
  *
  *     foreach ($blocks as $makeBlock) {
@@ -44,7 +44,7 @@ use X3P0\Framework\Container\Container;
  * lifetime, exactly as `Container::defer()` does.
  */
 #[Attribute(Attribute::TARGET_PARAMETER)]
-final class DeferredTagged implements ContextualAttribute
+final class DeferTagged implements ContextualAttribute
 {
 	/**
 	 * Stores the tag whose deferred resolvers are injected.

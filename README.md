@@ -11,7 +11,7 @@ A lightweight, modern dependency injection framework for WordPress plugins and t
 
 - **Autowiring container** — resolves constructor dependencies by type, including union and intersection types.
 - **Declarative service providers** — describe bindings, aliases, tags, and bootables with simple class constants; drop to code only when you need it.
-- **Attribute-driven injection** — `#[Get]`, `#[Defer]`, `#[Tagged]`, `#[DeferredTagged]`, `#[MakeFresh]`, `#[NoAutowire]`, and `#[Singleton]` configure resolution right at the point of use.
+- **Attribute-driven injection** — `#[Get]`, `#[Defer]`, `#[Tagged]`, `#[DeferTagged]`, `#[MakeFresh]`, `#[NoAutowire]`, and `#[Singleton]` configure resolution right at the point of use.
 - **Flexible lifetimes** — singletons, transients, pre-built instances, aliases, and "register only if missing" defaults that extensions can override.
 - **Contextual bindings** — give one consumer a different value or implementation than the rest of the app, by parameter name or by type.
 - **Tagging** — group related services under a label and resolve them together, eagerly or lazily.
@@ -322,7 +322,7 @@ Parameter attributes configure how a single dependency is resolved, right where 
 use X3P0\Framework\Container\Attributes\Get;
 use X3P0\Framework\Container\Attributes\Defer;
 use X3P0\Framework\Container\Attributes\Tagged;
-use X3P0\Framework\Container\Attributes\DeferredTagged;
+use X3P0\Framework\Container\Attributes\DeferTagged;
 use X3P0\Framework\Container\Attributes\MakeFresh;
 use X3P0\Framework\Container\Attributes\NoAutowire;
 
@@ -340,7 +340,7 @@ final class Dashboard
 
         // Inject the tagged services as deferred resolvers, keyed by class,
         // so you build only the ones you actually use.
-        #[DeferredTagged('report.sections')] private readonly array $sections,
+        #[DeferTagged('report.sections')] private readonly array $sections,
 
         // Build a fresh, unshared instance with inline constructor
         // overrides — a private copy configured right here.
@@ -359,7 +359,7 @@ final class Dashboard
 | `#[Get($id)]`             | parameter | the result of `get($id)`                                                |
 | `#[Defer($id)]`           | parameter | a `Closure` that resolves `$id` on each call                            |
 | `#[Tagged($tag)]`         | parameter | an array of the tag's resolved services                                 |
-| `#[DeferredTagged($tag)]` | parameter | `array<class-string, Closure>` of deferred resolvers, keyed by abstract |
+| `#[DeferTagged($tag)]` | parameter | `array<class-string, Closure>` of deferred resolvers, keyed by abstract |
 | `#[MakeFresh($id, $params)]` | parameter | `makeFresh($id, $params)` — a fresh, unshared instance with literal overrides |
 | `#[NoAutowire]`           | parameter | nothing — skips autowiring so the declared default (or `null`) is kept  |
 | `#[Singleton]`            | class     | opts an autowired class into a shared lifetime                          |
@@ -433,7 +433,7 @@ add_action('your/project/register', static function ($app): void {
 });
 ```
 
-For large or expensive collections, pair a tag with `#[DeferredTagged]` so consumers receive per-service resolver closures (keyed by class name) and build only what they need.
+For large or expensive collections, pair a tag with `#[DeferTagged]` so consumers receive per-service resolver closures (keyed by class name) and build only what they need.
 
 ### Lifecycle hooks
 

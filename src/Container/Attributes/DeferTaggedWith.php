@@ -1,7 +1,7 @@
 <?php
 
 /**
- * Deferred tagged with attribute.
+ * Defer tagged with attribute.
  *
  * @author    Justin Tadlock <justintadlock@gmail.com>
  * @copyright Copyright (c) 2025, Justin Tadlock
@@ -23,14 +23,14 @@ use X3P0\Framework\Container\Container;
  * combining `Container::taggedMap()` with `Container::defer()`. Like
  * `TaggedWith`, this lets a consumer look up a single tagged service by a
  * value it already knows (a slug, say) instead of an abstract identifier;
- * like `DeferredTagged`, the lookup yields a closure rather than a built
+ * like `DeferTagged`, the lookup yields a closure rather than a built
  * instance, so nothing is constructed until the consumer calls it. This
  * combination suits a large tag group where a consumer resolves at most
  * one or two members per request, keyed by something other than the class
  * name — e.g. resolving a single markup type by slug:
  *
  *     public function __construct(
- *         #[DeferredTaggedMap('channel', 'slug')] private readonly array $channels
+ *         #[DeferTaggedWith('channel', 'slug')] private readonly array $channels
  *     ) {}
  *
  *     $markup = ($this->channels[$slug])();
@@ -39,7 +39,7 @@ use X3P0\Framework\Container\Container;
  * lifetime, exactly as `Container::defer()` does.
  */
 #[Attribute(Attribute::TARGET_PARAMETER)]
-final class DeferredTaggedWith implements ContextualAttribute
+final class DeferTaggedWith implements ContextualAttribute
 {
 	/**
 	 * Stores the tag to map and the attribute whose value keys the map.
