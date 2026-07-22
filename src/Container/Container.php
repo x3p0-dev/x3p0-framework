@@ -197,9 +197,19 @@ interface Container extends InstanceResolver
 	 * Abstracts already assigned to the tag are ignored, so a tag never holds
 	 * duplicates.
 	 *
+	 * Passing `$of` types the tag: every member must be a concrete class of
+	 * that abstract, validated as it is tagged. This makes the tag a
+	 * homogeneous set of implementations — `tagged()` yields `$of` instances
+	 * and `taggedAbstracts()` yields their concrete classes — and rejects a
+	 * mistagged member up front. The contract is set once; a later call that
+	 * names a different `$of` for the same tag is an error.
+	 *
 	 * @param string|array<string> $abstracts
+	 * @param class-string|null    $of
+	 * @throws ContainerException When a member violates the tag's contract,
+	 *                            or a conflicting contract is declared.
 	 */
-	public function tag(string|array $abstracts, string $tag, array $attributes = []): void;
+	public function tag(string|array $abstracts, string $tag, array $attributes = [], ?string $of = null): void;
 
 	/**
 	 * Remove one or more abstracts from a tag, leaving the rest in place.
@@ -224,7 +234,10 @@ interface Container extends InstanceResolver
 	/**
 	 * Return the abstracts assigned to the given tag without resolving them,
 	 * for inspection or lazy resolution. The order matches assignment order,
-	 * and an unknown tag yields an empty array.
+	 * and an unknown tag yields an empty array. For a tag typed with `of`,
+	 * every member is a concrete class of that contract, so the returned
+	 * identifiers are ready to inspect (static methods, `is_subclass_of()`)
+	 * and pass to `make()`.
 	 *
 	 * @return array<string>
 	 */

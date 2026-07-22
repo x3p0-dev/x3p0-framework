@@ -65,6 +65,15 @@ final class ServiceContainer implements Container
 	protected array $tagAttributes = [];
 
 	/**
+	 * Maps a tag name to the abstract every member must be a concrete class
+	 * of, when the tag was declared with an `of` contract. Tags without a
+	 * contract are absent from this map.
+	 *
+	 * @var array<string, class-string>
+	 */
+	protected array $tagContracts = [];
+
+	/**
 	 * Maps an alias to the abstract it points at. Aliases are followed
 	 * transitively when an identifier is resolved.
 	 *
@@ -220,7 +229,7 @@ final class ServiceContainer implements Container
 	/**
 	 * @inheritDoc
 	 */
-	public function setParam(string $parameter, array|bool|string|int|float|\UnitEnum|null $value): void
+	public function setParam(string $parameter, array|bool|string|int|float|UnitEnum|null $value): void
 	{
 		$this->params[$parameter] = $value;
 	}
@@ -374,9 +383,42 @@ final class ServiceContainer implements Container
 	/**
 	 * @inheritDoc
 	 */
-	public function tag(string|array $abstracts, string $tag, array $attributes = []): void
+	public function tag(string|array $abstracts, string $tag, array $attributes = [], ?string $of = null): void
 	{
+		// Record the tag's contract, or reject a conflicting one. Once a
+		// tag is typed, every call for it is held to the same contract.
+		if ($of !== null) {
+			if (($this->tagContracts[$tag] ?? $of) !== $of) {
+				throw new ContainerException(esc_html(sprintf(
+					'Tag "%s" is already typed as "%s"; cannot re-tag it as "%s".',
+					$tag,
+					$this->tagContracts[$tag],
+					$of
+				)));
+			}
+
+			$this->tagContracts[$tag] = $of;
+		}
+
+		$contract = $this->tagContracts[$tag] ?? null;
+
 		foreach ((array) $abstracts as $abstract) {
+			// A typed tag holds concrete implementations of its
+			// contract, so each member is validated up front — the
+			// whole point of typing the tag rather than sorting it
+			// out at resolution.
+			if (
+				$contract !== null
+				&& (! class_exists($abstract) || ! is_a($abstract, $contract, true))
+			) {
+				throw new ContainerException(esc_html(sprintf(
+					'Cannot tag "%s" under "%s": it is not a concrete class of "%s".',
+					$abstract,
+					$tag,
+					$contract
+				)));
+			}
+
 			if (! in_array($abstract, $this->tags[$tag] ?? [], true)) {
 				$this->tags[$tag][] = $abstract;
 			}
