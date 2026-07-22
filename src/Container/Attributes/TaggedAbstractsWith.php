@@ -25,7 +25,7 @@ use X3P0\Framework\Container\Container;
  * at a time — e.g. resolving a single markup type by slug:
  *
  *     public function __construct(
- *         #[TaggedMap('channel', 'slug')] private readonly array $channels
+ *         #[TaggedAbstractsWith('channel', 'slug')] private readonly array $channels
  *     ) {}
  *
  *     $instance = $this->container->make($this->channels[$slug]);
