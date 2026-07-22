@@ -271,6 +271,35 @@ final class ServiceContainer implements Container
 	 * @inheritDoc
 	 * @throws ContainerException
 	 */
+	public function concreteClass(string $abstract): ?string
+	{
+		// Follow the alias chain, then walk binding to binding the same
+		// way resolve() delegates, so the returned class is the one that
+		// would actually be built rather than an intermediate binding.
+		$abstract = $this->getAlias($abstract);
+		$concrete = $this->getConcrete($abstract);
+
+		while (
+			is_string($concrete)
+			&& $concrete !== $abstract
+			&& ($this->registered($concrete) || class_exists($concrete))
+		) {
+			$abstract = $concrete;
+			$concrete = $this->getConcrete($concrete);
+		}
+
+		// A factory-closure binding or an unregistered non-class id has no
+		// static class to name. Return null and let the caller decide the
+		// policy (skip it, or treat it as not-found).
+		return is_string($concrete) && class_exists($concrete)
+			? $concrete
+			: null;
+	}
+
+	/**
+	 * @inheritDoc
+	 * @throws ContainerException
+	 */
 	public function make(string $abstract, array $parameters = []): object
 	{
 		return $this->resolve($abstract, $parameters);

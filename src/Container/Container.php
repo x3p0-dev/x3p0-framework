@@ -117,6 +117,19 @@ interface Container extends InstanceResolver
 	public function get(string $abstract): mixed;
 
 	/**
+	 * Resolve the concrete class the container would build for the given
+	 * abstract, following aliases and binding delegation without building it.
+	 * Useful for handing a class-string to code that constructs it later.
+	 *
+	 * Returns `null` when there is no static class to name — the abstract is
+	 * bound to a factory closure or is an unregistered non-class id. Callers
+	 * decide the policy for that case: skip it, or treat it as not-found.
+	 *
+	 * @return class-string|null
+	 */
+	public function concreteClass(string $abstract): ?string;
+
+	/**
 	 * Invoke a callable, resolving its parameters from the container.
 	 * Values in `$parameters` are matched by name and take precedence over
 	 * type-based resolution. The array form of `$callback` accepts a
