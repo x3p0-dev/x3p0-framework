@@ -117,19 +117,6 @@ interface Container extends InstanceResolver
 	public function get(string $abstract): mixed;
 
 	/**
-	 * Resolve the concrete class the container would build for the given
-	 * abstract, following aliases and binding delegation without building it.
-	 * Useful for handing a class-string to code that constructs it later.
-	 *
-	 * Returns `null` when there is no static class to name — the abstract is
-	 * bound to a factory closure or is an unregistered non-class id. Callers
-	 * decide the policy for that case: skip it, or treat it as not-found.
-	 *
-	 * @return class-string|null
-	 */
-	public function concreteClass(string $abstract): ?string;
-
-	/**
 	 * Invoke a callable, resolving its parameters from the container.
 	 * Values in `$parameters` are matched by name and take precedence over
 	 * type-based resolution. The array form of `$callback` accepts a
@@ -210,19 +197,35 @@ interface Container extends InstanceResolver
 	 * Abstracts already assigned to the tag are ignored, so a tag never holds
 	 * duplicates.
 	 *
-	 * Passing `$of` types the tag: every member must be a concrete class of
-	 * that abstract, validated as it is tagged. This makes the tag a
-	 * homogeneous set of implementations — `tagged()` yields `$of` instances
-	 * and `taggedAbstracts()` yields their concrete classes — and rejects a
-	 * mistagged member up front. The contract is set once; a later call that
-	 * names a different `$of` for the same tag is an error.
+	 * If the tag has a contract (see `setTagContract()`), each member is
+	 * validated as it is tagged and a mistagged one is rejected up front.
 	 *
 	 * @param string|array<string> $abstracts
-	 * @param class-string|null    $of
-	 * @throws ContainerException When a member violates the tag's contract,
-	 *                            or a conflicting contract is declared.
+	 * @throws ContainerException When a member violates the tag's contract.
 	 */
-	public function tag(string|array $abstracts, string $tag, array $attributes = [], ?string $of = null): void;
+	public function tag(string|array $abstracts, string $tag, array $attributes = []): void;
+
+	/**
+	 * Type a tag: declare that every member must be a concrete class of the
+	 * given contract. This makes the tag a homogeneous set of implementations
+	 * — `tagged()` yields `$contract` instances and `taggedAbstracts()`
+	 * yields their concrete classes.
+	 *
+	 * The contract is enforced at every point it can be: members already
+	 * tagged are validated now, members tagged later are validated by
+	 * `tag()`, and every resolution (`tagged()`, `taggedAbstracts()`, and
+	 * their `*With` variants) validates as a backstop — so a violation is
+	 * caught regardless of when the offending member was tagged.
+	 *
+	 * The contract is set once; a later call naming a different contract
+	 * for the same tag is an error.
+	 *
+	 * @param class-string $contract
+	 * @throws ContainerException When a member already tagged violates the
+	 *                            contract, or a conflicting contract is
+	 *                            declared.
+	 */
+	public function setTagContract(string $tag, string $contract): void;
 
 	/**
 	 * Remove one or more abstracts from a tag, leaving the rest in place.
@@ -247,15 +250,14 @@ interface Container extends InstanceResolver
 	/**
 	 * Return the abstracts assigned to the given tag without resolving them,
 	 * for inspection or lazy resolution. The order matches assignment order,
-	 * and an unknown tag yields an empty array. For a tag typed with `of`,
-	 * every member is a concrete class of that contract, so the returned
-	 * identifiers are ready to inspect (static methods, `is_subclass_of()`)
-	 * and pass to `make()`.
+	 * and an unknown tag yields an empty array. For a typed tag (see
+	 * `setTagContract()`), every member is a concrete class of that contract,
+	 * so the returned identifiers are ready to inspect (static methods,
+	 * `is_subclass_of()`) and pass to `make()`.
 	 *
 	 * @return array<string>
 	 */
 	public function taggedAbstracts(string $tag): array;
-
 
 	/**
 	 * Returns a map from a chosen attribute's value to its abstract, for
