@@ -30,6 +30,7 @@ use UnitEnum;
 use X3P0\Framework\Container\Attributes\ContextualAttribute;
 use X3P0\Framework\Container\Attributes\NoAutowire;
 use X3P0\Framework\Container\Attributes\Singleton;
+use X3P0\Framework\Container\Attributes\Tag;
 
 /**
  * Implementation of the dependency injection container.
@@ -402,6 +403,20 @@ final class ServiceContainer implements Container
 			if ($attributes !== []) {
 				$this->tagAttributes[$tag][$abstract] = $attributes;
 			}
+		}
+	}
+
+	/**
+	 * @inheritDoc
+	 * @throws ReflectionException
+	 */
+	public function tagFromAttributes(string $class): void
+	{
+		foreach ((new ReflectionClass($class))->getAttributes(Tag::class) as $attribute) {
+			/** @var Tag $tag */
+			$tag = $attribute->newInstance();
+
+			$this->tag($class, $tag->tag(), $tag->attributes());
 		}
 	}
 

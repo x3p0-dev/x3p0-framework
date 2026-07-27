@@ -205,6 +205,17 @@ interface Container extends InstanceResolver
 	 */
 	public function tag(string|array $abstracts, string $tag, array $attributes = []): void;
 
+
+	/**
+	 * Reads every `#[Tag]` attribute declared on `$class` and assigns it to
+	 * each named tag with the attribute's recorded values, exactly as if
+	 * `tag()` had been called directly. A no-op for a class with no `#[Tag]`
+	 * attributes.
+	 *
+	 * @throws ContainerException When a member violates a tag's contract.
+	 */
+	public function tagFromAttributes(string $class): void;
+
 	/**
 	 * Type a tag: declare that every member must be a concrete class of the
 	 * given contract. This makes the tag a homogeneous set of implementations
