@@ -205,7 +205,6 @@ interface Container extends InstanceResolver
 	 */
 	public function tag(string|array $abstracts, string $tag, array $attributes = []): void;
 
-
 	/**
 	 * Reads every `#[Tag]` attribute declared on `$class` and assigns it to
 	 * each named tag with the attribute's recorded values, exactly as if
