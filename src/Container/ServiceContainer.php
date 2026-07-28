@@ -99,6 +99,14 @@ final class ServiceContainer implements Container
 	private array $singletonAttributeCache = [];
 
 	/**
+	 * Memoizes reflected classes so a concrete is only reflected once, no
+	 * matter how many times it's built, checked for attributes, or tagged.
+	 *
+	 * @var array<class-string, ReflectionClass<object>>
+	 */
+	private array $reflectionCache = [];
+
+	/**
 	 * Maps an abstract to the list of callbacks to run after it is built.
 	 *
 	 * @var array<string, array<Closure>>
@@ -412,7 +420,7 @@ final class ServiceContainer implements Container
 	 */
 	public function tagFromAttributes(string $class): void
 	{
-		foreach ((new ReflectionClass($class))->getAttributes(Tag::class) as $attribute) {
+		foreach ($this->reflectClass($class)->getAttributes(Tag::class) as $attribute) {
 			/** @var Tag $tag */
 			$tag = $attribute->newInstance();
 
@@ -740,6 +748,8 @@ final class ServiceContainer implements Container
 	 * Determine whether a concrete class opts into singleton lifetime via the
 	 * `#[Singleton]` attribute. Results are memoized per class name to avoid
 	 * reflecting the same class more than once.
+	 *
+	 * @throws ReflectionException
 	 */
 	private function declaresSingleton(mixed $concrete): bool
 	{
@@ -748,7 +758,21 @@ final class ServiceContainer implements Container
 		}
 
 		return $this->singletonAttributeCache[$concrete] ??=
-			(new ReflectionClass($concrete))->getAttributes(Singleton::class) !== [];
+			$this->reflectClass($concrete)->getAttributes(Singleton::class) !== [];
+	}
+
+	/**
+	 * Returns the reflector for a class, reflecting it once and reusing the
+	 * result on every subsequent call.
+	 *
+	 * @template T of object
+	 * @param    class-string<T>     $class
+	 * @return   ReflectionClass<T>
+	 * @throws   ReflectionException
+	 */
+	private function reflectClass(string $class): ReflectionClass
+	{
+		return $this->reflectionCache[$class] ??= new ReflectionClass($class);
 	}
 
 	/**
@@ -819,7 +843,7 @@ final class ServiceContainer implements Container
 		// ContainerException, while nested ContainerExceptions from
 		// dependency resolution propagate unchanged.
 		try {
-			$reflector = new ReflectionClass($concrete);
+			$reflector = $this->reflectClass($concrete);
 
 			// Get the class constructor method.
 			$constructor = $reflector->getConstructor();
