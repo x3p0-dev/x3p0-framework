@@ -1292,8 +1292,7 @@ final class ServiceContainer implements Container
 	 */
 	private function parameterHasFallback(ReflectionParameter $param): bool
 	{
-		return $param->isDefaultValueAvailable()
-			|| (bool) $param->getType()?->allowsNull();
+		return $param->isDefaultValueAvailable() || $param->getType()?->allowsNull();
 	}
 
 	/**
