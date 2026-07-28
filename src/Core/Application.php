@@ -14,6 +14,7 @@ declare(strict_types=1);
 namespace X3P0\Framework\Core;
 
 use X3P0\Framework\Container\Container;
+use X3P0\Framework\Container\ContainerException;
 use X3P0\Framework\Container\InstanceResolver;
 use X3P0\Framework\Contracts\Bootable;
 
@@ -71,6 +72,8 @@ abstract class Application implements Bootable
 	/**
 	 * Stores the container and registers the default bindings and service
 	 * providers, leaving the application ready to boot.
+	 *
+	 * @throws ContainerException
 	 */
 	public function __construct(protected readonly Container $container)
 	{
@@ -89,6 +92,8 @@ abstract class Application implements Bootable
 
 	/**
 	 * Registers the default service providers.
+	 *
+	 * @throws ContainerException
 	 */
 	protected function registerDefaultProviders(): void
 	{
@@ -114,7 +119,8 @@ abstract class Application implements Bootable
 	 * the guarantee that every provider is registered before any of them
 	 * boots — and none is left dormant.
 	 *
-	 * @param ServiceProvider|class-string ...$providers
+	 * @param  ServiceProvider|class-string ...$providers
+	 * @throws ContainerException
 	 */
 	public function register(ServiceProvider|string ...$providers): void
 	{
@@ -145,8 +151,8 @@ abstract class Application implements Bootable
 	 * finish registering before any provider boots.
 	 *
 	 * @param  ServiceProvider|class-string<ServiceProvider> $provider
-	 * @throws InvalidProviderException If a class-name provider is not a
-	 *         `ServiceProvider` subclass.
+	 * @throws InvalidProviderException If a class-name provider is not a `ServiceProvider` subclass.
+	 * @throws ContainerException
 	 */
 	private function registerProvider(ServiceProvider|string $provider): ?ServiceProvider
 	{

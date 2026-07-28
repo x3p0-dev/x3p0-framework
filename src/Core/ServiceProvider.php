@@ -14,6 +14,7 @@ declare(strict_types=1);
 namespace X3P0\Framework\Core;
 
 use X3P0\Framework\Container\Container;
+use X3P0\Framework\Container\ContainerException;
 use X3P0\Framework\Contracts\Bootable;
 
 /**
@@ -112,6 +113,8 @@ abstract class ServiceProvider implements Bootable
 	 * constant. The application calls this before `register()`, so the
 	 * declared bindings are always processed regardless of what a subclass
 	 * does in `register()`.
+	 *
+	 * @throws ContainerException
 	 */
 	final public function registerDeclarations(): void
 	{
