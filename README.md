@@ -11,7 +11,7 @@ A lightweight, modern dependency injection framework for WordPress plugins and t
 
 - **Autowiring container** — resolves constructor dependencies by type, including union and intersection types.
 - **Declarative service providers** — describe bindings, aliases, tags, and bootables with simple class constants; drop to code only when you need it.
-- **Attribute-driven injection** — `#[Get]`, `#[Defer]`, `#[Tagged]`, `#[TaggedWith]`, `#[DeferTagged]`, `#[DeferTaggedWith]`, `#[TaggedAbstracts]`, `#[TaggedAbstractsWith]`, `#[Build]`, `#[Param]`, `#[NoAutowire]`, `#[Singleton]`, `#[SingletonWhen]`, and `#[Tag]` configure resolution right at the point of use.
+- **Attribute-driven injection** — `#[Get]`, `#[Make]`, `#[Defer]`, `#[Tagged]`, `#[TaggedWith]`, `#[DeferTagged]`, `#[DeferTaggedWith]`, `#[TaggedAbstracts]`, `#[TaggedAbstractsWith]`, `#[Build]`, `#[Param]`, `#[NoAutowire]`, `#[Singleton]`, `#[SingletonWhen]`, and `#[Tag]` configure resolution right at the point of use.
 - **Flexible lifetimes** — singletons, transients, pre-built instances, aliases, "register only if missing" defaults that extensions can override, and conditional bindings that register only when a runtime check passes.
 - **Contextual bindings** — give one consumer a different value or implementation than the rest of the app, by parameter name or by type.
 - **Named parameters** — set container-backed scalar or array values by name and inject them explicitly with `#[Param]`.
@@ -341,6 +341,7 @@ Parameter attributes configure how a single dependency is resolved, right where 
 
 ```php
 use X3P0\Framework\Container\Attributes\Get;
+use X3P0\Framework\Container\Attributes\Make;
 use X3P0\Framework\Container\Attributes\Defer;
 use X3P0\Framework\Container\Attributes\Tagged;
 use X3P0\Framework\Container\Attributes\DeferTagged;
@@ -353,6 +354,10 @@ final class Dashboard
     public function __construct(
         // Resolve a specific identifier (a keyed binding or a chosen concrete).
         #[Get('config')] private readonly Config $config,
+
+        // Resolve an identifier with inline constructor overrides, still
+        // honoring a matching cached singleton when none are given.
+        #[Make(ReportBuilder::class, ['format' => 'pdf'])] private readonly ReportBuilder $reportBuilder,
 
         // Inject a closure that resolves the service lazily, on demand.
         #[Defer(ReportBuilder::class)] private readonly Closure $makeReport,
@@ -382,6 +387,7 @@ final class Dashboard
 | Attribute                          | Target    | Injects                                                                    |
 |-------------------------------------|-----------|-----------------------------------------------------------------------------|
 | `#[Get($id)]`                       | parameter | the result of `get($id)`                                                    |
+| `#[Make($id, $params)]`             | parameter | `make($id, $params)` — resolves `$id`, honoring a cached singleton when `$params` is omitted |
 | `#[Defer($id)]`                     | parameter | a `Closure` that resolves `$id` on each call                                |
 | `#[Tagged($tag)]`                   | parameter | an array of the tag's resolved services                                     |
 | `#[TaggedWith($tag, $attr)]`        | parameter | resolved services keyed by a chosen tag attribute's value                   |
