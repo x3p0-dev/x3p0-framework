@@ -20,7 +20,7 @@ use X3P0\Framework\Container\Container;
 /**
  * Injects the services assigned to a container tag as an array of deferred
  * resolvers, keyed by a chosen attribute's value rather than by abstract —
- * combining `Container::taggedMap()` with `Container::defer()`. Like
+ * combining `Container::taggedAbstractsWith()` with `Container::defer()`. Like
  * `TaggedWith`, this lets a consumer look up a single tagged service by a
  * value it already knows (a slug, say) instead of an abstract identifier;
  * like `DeferTagged`, the lookup yields a closure rather than a built

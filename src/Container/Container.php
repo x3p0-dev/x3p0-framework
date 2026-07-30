@@ -276,7 +276,7 @@ interface Container extends InstanceResolver
 	 * recorded at tag() time — so it's suited to a large tag group where
 	 * just one member will actually be resolved:
 	 *
-	 *   $bySlug   = $container->taggedMap(Markup::TAG, 'slug');
+	 *   $bySlug   = $container->taggedAbstractsWith(Markup::TAG, 'slug');
 	 *   $instance = $container->make($bySlug[$slug]);
 	 *
 	 * @return array<mixed, string>

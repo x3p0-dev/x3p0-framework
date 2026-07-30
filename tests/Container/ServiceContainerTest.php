@@ -315,9 +315,9 @@ final class ServiceContainerTest extends TestCase
 		$this->assertSame($shared->cache, $fresh->cache);
 	}
 
-	public function testMakeFreshFollowsDelegationToTheConcrete(): void
+	public function testBuildFollowsDelegationToTheConcrete(): void
 	{
-		// Resolving the interface delegates to FileCache; makeFresh builds
+		// Resolving the interface delegates to FileCache; build() builds
 		// a fresh concrete while leaving the shared concrete in place.
 		$this->container->singleton(Cache::class, FileCache::class);
 		$shared = $this->container->get(Cache::class);

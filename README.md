@@ -11,10 +11,11 @@ A lightweight, modern dependency injection framework for WordPress plugins and t
 
 - **Autowiring container** — resolves constructor dependencies by type, including union and intersection types.
 - **Declarative service providers** — describe bindings, aliases, tags, and bootables with simple class constants; drop to code only when you need it.
-- **Attribute-driven injection** — `#[Get]`, `#[Defer]`, `#[Tagged]`, `#[DeferTagged]`, `#[Build]`, `#[NoAutowire]`, and `#[Singleton]` configure resolution right at the point of use.
+- **Attribute-driven injection** — `#[Get]`, `#[Defer]`, `#[Tagged]`, `#[TaggedWith]`, `#[DeferTagged]`, `#[DeferTaggedWith]`, `#[TaggedAbstracts]`, `#[TaggedAbstractsWith]`, `#[Build]`, `#[Param]`, `#[NoAutowire]`, `#[Singleton]`, and `#[Tag]` configure resolution right at the point of use.
 - **Flexible lifetimes** — singletons, transients, pre-built instances, aliases, and "register only if missing" defaults that extensions can override.
 - **Contextual bindings** — give one consumer a different value or implementation than the rest of the app, by parameter name or by type.
-- **Tagging** — group related services under a label and resolve them together, eagerly or lazily.
+- **Named parameters** — set container-backed scalar or array values by name and inject them explicitly with `#[Param]`.
+- **Tagging** — group related services under a label and resolve them together, eagerly or lazily, keyed by a per-member attribute, and optionally constrained to a common contract.
 - **Lifecycle hooks** — observe (`resolving()`) or wrap (`decorate()`) services as they are built.
 - **WordPress-friendly lifecycle** — register and boot across multiple load phases (`plugins_loaded`, `after_setup_theme`, …).
 - **Type-safe** — full PHP 8.1+ type declarations for first-class IDE and static-analysis support.
@@ -31,6 +32,7 @@ A lightweight, modern dependency injection framework for WordPress plugins and t
   - [Autowiring](#autowiring)
   - [Attribute-based injection](#attribute-based-injection)
   - [Contextual bindings](#contextual-bindings)
+  - [Named parameters](#named-parameters)
   - [Tagging](#tagging)
   - [Lifecycle hooks](#lifecycle-hooks)
   - [Introspection](#introspection)
@@ -191,26 +193,22 @@ final class BlockServiceProvider extends ServiceProvider
 
 ### When you need code
 
-Override `register()` for bindings that need a closure or runtime decisions, and call `parent::register()` to keep the constant-driven bindings:
+Override `register()` for bindings that need a closure or runtime decisions. The constant-driven bindings aren't processed by `register()` itself — a separate, final `registerDeclarations()` method handles them, and the application always calls it first — so nothing declared via the constants is lost, whether or not you override `register()` or call its parent:
 
 ```php
 public function register(): void
 {
-    parent::register();
-
     $this->container->singleton(Connection::class, function (Container $c): Connection {
         return new Connection($c->get(Config::class)->dsn());
     });
 }
 ```
 
-Override `boot()` the same way (calling `parent::boot()`) when you need to do more than boot the `BOOTABLE` services — for example, hooking into WordPress:
+Override `boot()` the same way when you need to do more than boot the `BOOTABLE` services — for example, hooking into WordPress. `bootDeclarations()` boots them first, regardless:
 
 ```php
 public function boot(): void
 {
-    parent::boot();
-
     add_action('init', $this->registerBlocks(...));
 }
 ```
@@ -273,7 +271,7 @@ $report = $container->make(ReportBuilder::class, ['format' => 'pdf']);
 // Build a fresh, unshared instance even if the abstract is bound as a
 // singleton. The shared instance is left untouched; only this abstract is
 // built anew — its dependencies still resolve normally (shared stays shared).
-$scratch = $container->makeFresh(Cache::class);
+$scratch = $container->build(Cache::class);
 
 // Invoke a callable with its parameters resolved from the container.
 $result = $container->call([$controller, 'handle']);
@@ -324,6 +322,7 @@ use X3P0\Framework\Container\Attributes\Defer;
 use X3P0\Framework\Container\Attributes\Tagged;
 use X3P0\Framework\Container\Attributes\DeferTagged;
 use X3P0\Framework\Container\Attributes\Build;
+use X3P0\Framework\Container\Attributes\Param;
 use X3P0\Framework\Container\Attributes\NoAutowire;
 
 final class Dashboard
@@ -346,6 +345,9 @@ final class Dashboard
         // overrides — a private copy configured right here.
         #[Build(TransientCache::class, ['ttl' => 3600])] private readonly Cache $cache,
 
+        // Resolve a container-backed named parameter set via `setParam()`.
+        #[Param('timezone')] private readonly string $timezone,
+
         // Skip autowiring so the parameter keeps its default instead of the
         // container building the type — here, leaving `$user` null rather
         // than constructing a WP_User.
@@ -354,15 +356,21 @@ final class Dashboard
 }
 ```
 
-| Attribute                 | Target    | Injects                                                                 |
-|---------------------------|-----------|-------------------------------------------------------------------------|
-| `#[Get($id)]`             | parameter | the result of `get($id)`                                                |
-| `#[Defer($id)]`           | parameter | a `Closure` that resolves `$id` on each call                            |
-| `#[Tagged($tag)]`         | parameter | an array of the tag's resolved services                                 |
-| `#[DeferTagged($tag)]` | parameter | `array<class-string, Closure>` of deferred resolvers, keyed by abstract |
-| `#[Build($id, $params)]` | parameter | `build($id, $params)` — a fresh, unshared instance with literal overrides |
-| `#[NoAutowire]`           | parameter | nothing — skips autowiring so the declared default (or `null`) is kept  |
-| `#[Singleton]`            | class     | opts an autowired class into a shared lifetime                          |
+| Attribute                          | Target    | Injects                                                                    |
+|-------------------------------------|-----------|-----------------------------------------------------------------------------|
+| `#[Get($id)]`                       | parameter | the result of `get($id)`                                                    |
+| `#[Defer($id)]`                     | parameter | a `Closure` that resolves `$id` on each call                                |
+| `#[Tagged($tag)]`                   | parameter | an array of the tag's resolved services                                     |
+| `#[TaggedWith($tag, $attr)]`        | parameter | resolved services keyed by a chosen tag attribute's value                   |
+| `#[DeferTagged($tag)]`              | parameter | `array<class-string, Closure>` of deferred resolvers, keyed by abstract     |
+| `#[DeferTaggedWith($tag, $attr)]`   | parameter | `array<mixed, Closure>` of deferred resolvers, keyed by a tag attribute's value |
+| `#[TaggedAbstracts($tag)]`          | parameter | the tag's unresolved abstracts, for building only what's needed             |
+| `#[TaggedAbstractsWith($tag, $attr)]` | parameter | unresolved abstracts keyed by a chosen tag attribute's value              |
+| `#[Build($id, $params)]`            | parameter | `build($id, $params)` — a fresh, unshared instance with literal overrides   |
+| `#[Param($name)]`                   | parameter | a container-backed named parameter value set via `setParam()`               |
+| `#[NoAutowire]`                     | parameter | nothing — skips autowiring so the declared default (or `null`) is kept      |
+| `#[Singleton]`                      | class     | opts an autowired class into a shared lifetime                              |
+| `#[Tag($tag, $attributes = [])]`    | class     | declares the class's own tag membership, applied via `tagFromAttributes()`  |
 
 You can build your own by implementing `ContextualAttribute`:
 
@@ -402,6 +410,33 @@ $container->whenNeedsType(ExportJob::class, Cache::class, RedisCache::class);
 
 A contextual binding sits below an explicit `make()` override and any parameter attribute, but above ordinary type autowiring — so `make(Mailer::class, ['apiKey' => '…'])` still wins, and a binding registered for one consumer never leaks to another.
 
+### Named parameters
+
+Named parameters give the container a place to hold scalar or array configuration values that any consumer can opt into by name — a lighter alternative to `whenNeedsParam()` for a value that isn't specific to one consumer.
+
+```php
+$container->setParam('timezone', 'America/Chicago');
+$container->setParam('retryLimit', 3);
+
+$container->hasParam('timezone'); // true
+$container->getParam('timezone'); // 'America/Chicago'
+```
+
+A value is only injected when the constructor parameter is explicitly marked with `#[Param]` — matching the name alone is never enough:
+
+```php
+use X3P0\Framework\Container\Attributes\Param;
+
+final class ReportBuilder
+{
+    public function __construct(
+        #[Param('timezone')] private readonly string $timezone
+    ) {}
+}
+```
+
+If the named parameter was never set, resolution falls back to the constructor parameter's own default value or `null` (when nullable), the same way an unsatisfiable autowired type does.
+
 ### Tagging
 
 Tagging groups related abstracts under a label so they can be resolved together — blocks, widgets, REST controllers, CLI commands, and the like — without maintaining a master list by hand.
@@ -416,13 +451,17 @@ foreach ($container->tagged('theme.blocks') as $block) {
 
 Tagged abstracts resolve through the container like anything else, so singletons stay shared and unbound classes are autowired. An unknown tag resolves to an empty array.
 
-| Method                    | Returns                                         |
-|---------------------------|-------------------------------------------------|
-| `tag($abstracts, $tag)`   | — assigns one or more abstracts to a tag        |
-| `untag($abstracts, $tag)` | — removes abstracts from a tag                  |
-| `tagged($tag)`            | the tag's services, resolved                    |
-| `taggedAbstracts($tag)`   | the tag's abstracts, **without** resolving them |
-| `hasTag($tag)`            | whether any abstracts are currently assigned    |
+| Method                             | Returns                                                |
+|--------------------------------------|---------------------------------------------------------|
+| `tag($abstracts, $tag, $attrs = [])` | — assigns one or more abstracts to a tag, optionally recording per-member attributes |
+| `tagFromAttributes($class)`          | — assigns `$class` to every tag declared on it with `#[Tag]` |
+| `untag($abstracts, $tag)`            | — removes abstracts from a tag                           |
+| `tagged($tag)`                       | the tag's services, resolved                              |
+| `taggedWith($tag, $attribute)`       | the tag's resolved services, keyed by an attribute's value |
+| `taggedAbstracts($tag)`              | the tag's abstracts, **without** resolving them            |
+| `taggedAbstractsWith($tag, $attribute)` | the tag's abstracts, keyed by an attribute's value, **without** resolving them |
+| `setTagContract($tag, $contract)`    | — declares that every member of `$tag` must be a concrete class of `$contract` |
+| `hasTag($tag)`                       | whether any abstracts are currently assigned              |
 
 Because tags accumulate, several providers — or third-party code hooking your registration action — can contribute to the same tag without touching the provider that consumes it:
 
@@ -434,6 +473,35 @@ add_action('your/project/register', static function ($app): void {
 ```
 
 For large or expensive collections, pair a tag with `#[DeferTagged]` so consumers receive per-service resolver closures (keyed by class name) and build only what they need.
+
+#### Tagging with attributes
+
+`tag()` accepts an optional attribute map recorded alongside each member. Pair it with `taggedWith()` or `taggedAbstractsWith()` to look a service up by something other than its class name — a slug, say — instead of resolving the whole tag:
+
+```php
+$container->tag(EmailChannel::class, 'channels', ['slug' => 'email']);
+$container->tag(SmsChannel::class,   'channels', ['slug' => 'sms']);
+
+$bySlug   = $container->taggedAbstractsWith('channels', 'slug');
+$instance = $container->make($bySlug['email']);
+```
+
+A class can declare its own tag membership with the `#[Tag]` attribute instead of a provider hand-wiring it. `tagFromAttributes()` reads the attribute and calls `tag()` on the class's behalf:
+
+```php
+use X3P0\Framework\Container\Attributes\Tag;
+
+#[Tag('channels', ['slug' => 'email'])]
+final class EmailChannel implements Channel {}
+
+$container->tagFromAttributes(EmailChannel::class);
+```
+
+For a tag whose members should all satisfy one contract, `setTagContract()` validates every member — past or future — as a concrete class of it, catching a mistagged member as soon as it's added rather than at resolution:
+
+```php
+$container->setTagContract('channels', Channel::class);
+```
 
 ### Lifecycle hooks
 
@@ -511,8 +579,6 @@ A single register-then-boot pass doesn't need `begin()`; it's required only to o
 The `X3P0\Framework\Contracts` namespace holds small, dependency-free interfaces.
 
 - **`Bootable`** — a `boot(): void` method for deferred setup that shouldn't live in a constructor (registering hooks, etc.). Service providers implement it, and any abstract listed in a provider's `BOOTABLE` constant must too.
-- **`Renderable`** — a `render(): string` method for classes that produce escaped, safe HTML.
-- **`ClassRegistry`** — a registry of class *names* (not instances) indexed by key: `register()`, `unregister()`, `isRegistered()`, and `get()`.
 
 ## Exceptions
 
