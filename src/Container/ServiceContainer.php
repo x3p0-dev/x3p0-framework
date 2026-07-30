@@ -30,6 +30,7 @@ use UnitEnum;
 use X3P0\Framework\Container\Attributes\ContextualAttribute;
 use X3P0\Framework\Container\Attributes\NoAutowire;
 use X3P0\Framework\Container\Attributes\Singleton;
+use X3P0\Framework\Container\Attributes\SingletonWhen;
 use X3P0\Framework\Container\Attributes\Tag;
 
 /**
@@ -97,6 +98,16 @@ final class ServiceContainer implements Container
 	 * @var array<string, bool>
 	 */
 	private array $singletonAttributeCache = [];
+
+	/**
+	 * Memoizes a concrete class's `#[SingletonWhen]` condition (or `null` if
+	 * it declares none) so the class is only reflected for it once. The
+	 * condition itself is re-evaluated on every check, since it may depend on
+	 * state that changes between resolutions.
+	 *
+	 * @var array<string, Closure|string|array|bool|null>
+	 */
+	private array $singletonWhenCache = [];
 
 	/**
 	 * Memoizes reflected classes so a concrete is only reflected once, no
@@ -167,6 +178,20 @@ final class ServiceContainer implements Container
 
 	/**
 	 * @inheritDoc
+	 * @throws ContainerException|ReflectionException
+	 */
+	public function singletonWhen(
+		string $abstract,
+		Closure|string|array|bool $condition,
+		mixed $concrete = null
+	): void {
+		if ($this->conditionIsTrue($condition)) {
+			$this->singleton($abstract, $concrete);
+		}
+	}
+
+	/**
+	 * @inheritDoc
 	 */
 	public function transient(string $abstract, mixed $concrete = null): void
 	{
@@ -185,6 +210,20 @@ final class ServiceContainer implements Container
 	public function transientIf(string $abstract, mixed $concrete = null): void
 	{
 		if (! $this->registered($abstract)) {
+			$this->transient($abstract, $concrete);
+		}
+	}
+
+	/**
+	 * @inheritDoc
+	 * @throws ContainerException|ReflectionException
+	 */
+	public function transientWhen(
+		string $abstract,
+		Closure|string|array|bool $condition,
+		mixed $concrete = null
+	): void {
+		if ($this->conditionIsTrue($condition)) {
 			$this->transient($abstract, $concrete);
 		}
 	}
@@ -639,9 +678,9 @@ final class ServiceContainer implements Container
 			// then layered on top below. Reaching this branch implies
 			// `$this->bindings[$abstract]` is set (only a binding can
 			// map the abstract to a differing concrete), so the
-			// `declaresSingleton()` check further down is skipped and
-			// the concrete's singleton lifetime is honored by the
-			// nested resolution instead.
+			// `declaresSingleton()`/`declaresSingletonWhen()` checks
+			// further down are skipped and the concrete's singleton
+			// lifetime is honored by the nested resolution instead.
 			if (
 				is_string($concrete)
 				&& $concrete !== $abstract
@@ -682,14 +721,18 @@ final class ServiceContainer implements Container
 			// resolution, yielding a fresh decorator per call by design.
 			$service = $this->applyDecorators($abstract, $service);
 
-			// Decide whether to cache the instance. Explicit bindings
-			// take precedence; for autowired classes (those with no
-			// binding), the `#[Singleton]` attribute opts the class into
-			// singleton lifetime. Parameterized builds are never cached.
+			// Decide whether to cache the instance. Explicit
+			// bindings take precedence; for autowired classes
+			// (those with no binding), the `#[Singleton]` attribute
+			// (or a `#[SingletonWhen]` whose condition currently
+			// holds) opts the class into singleton lifetime.
+			// Parameterized builds are never cached.
 			$shared = $this->isShared($abstract);
 
 			if (! isset($this->bindings[$abstract])) {
-				$shared = $shared || $this->declaresSingleton($concrete);
+				$shared = $shared
+					|| $this->declaresSingleton($concrete)
+					|| $this->declaresSingletonWhen($concrete);
 			}
 
 			if ($shared && $parameters === [] && ! $fresh) {
@@ -759,6 +802,53 @@ final class ServiceContainer implements Container
 
 		return $this->singletonAttributeCache[$concrete] ??=
 			$this->reflectClass($concrete)->getAttributes(Singleton::class) !== [];
+	}
+
+	/**
+	 * Determine whether a concrete class opts into singleton lifetime via a
+	 * `#[SingletonWhen]` attribute whose condition currently evaluates
+	 * truthy. The attribute's presence (and its condition) is memoized per
+	 * class name to avoid reflecting the same class more than once, but the
+	 * condition itself is evaluated fresh on every call.
+	 *
+	 * @throws ReflectionException|ContainerException
+	 */
+	private function declaresSingletonWhen(mixed $concrete): bool
+	{
+		if (! is_string($concrete) || ! class_exists($concrete)) {
+			return false;
+		}
+
+		if (! array_key_exists($concrete, $this->singletonWhenCache)) {
+			$attributes = $this->reflectClass($concrete)->getAttributes(SingletonWhen::class);
+
+			$this->singletonWhenCache[$concrete] = $attributes === []
+				? null
+				: $attributes[0]->newInstance()->condition;
+		}
+
+		$condition = $this->singletonWhenCache[$concrete];
+
+		return $condition !== null && $this->conditionIsTrue($condition);
+	}
+
+	/**
+	 * Evaluate a `singletonWhen()`/`transientWhen()`/`#[SingletonWhen]`
+	 * condition: a bool is used as-is, a Closure is invoked with the
+	 * container, and anything else is treated as a callable and run through
+	 * `call()` so it is autowired like any other container callback.
+	 *
+	 * @throws ContainerException|ReflectionException
+	 */
+	private function conditionIsTrue(Closure|string|array|bool $condition): bool
+	{
+		if (is_bool($condition)) {
+			return $condition;
+		}
+
+		return (bool) ($condition instanceof Closure
+			? $condition($this)
+			: $this->call($condition));
 	}
 
 	/**

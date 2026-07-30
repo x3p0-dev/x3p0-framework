@@ -12,6 +12,7 @@ use X3P0\Framework\Container\ServiceContainer;
 use X3P0\Framework\Tests\Fixtures\AlsoNeedsCache;
 use X3P0\Framework\Tests\Fixtures\BareVariadicCollector;
 use X3P0\Framework\Tests\Fixtures\Cache;
+use X3P0\Framework\Tests\Fixtures\CacheAvailability;
 use X3P0\Framework\Tests\Fixtures\ConfigurableCache;
 use X3P0\Framework\Tests\Fixtures\MakeFreshConsumer;
 use X3P0\Framework\Tests\Fixtures\MakeFreshUnknownConsumer;
@@ -26,6 +27,8 @@ use X3P0\Framework\Tests\Fixtures\NoAutowireCache;
 use X3P0\Framework\Tests\Fixtures\OptionalValueObject;
 use X3P0\Framework\Tests\Fixtures\ReportBuilder;
 use X3P0\Framework\Tests\Fixtures\RequiresValueObject;
+use X3P0\Framework\Tests\Fixtures\SingletonWhenFalseCache;
+use X3P0\Framework\Tests\Fixtures\SingletonWhenTrueCache;
 use X3P0\Framework\Tests\Fixtures\UnionValueObject;
 use X3P0\Framework\Tests\Fixtures\ValueObject;
 
@@ -55,6 +58,90 @@ final class ServiceContainerTest extends TestCase
 		$this->assertNotSame(
 			$this->container->get(Cache::class),
 			$this->container->get(Cache::class)
+		);
+	}
+
+	public function testSingletonWhenBindsAsSingletonWhenConditionIsTrue(): void
+	{
+		$this->container->singletonWhen(Cache::class, true, FileCache::class);
+
+		$this->assertSame(
+			$this->container->get(Cache::class),
+			$this->container->get(Cache::class)
+		);
+	}
+
+	public function testSingletonWhenBindsNothingWhenConditionIsFalse(): void
+	{
+		$this->container->singletonWhen(Cache::class, false, FileCache::class);
+
+		$this->expectException(NotFoundException::class);
+
+		$this->container->get(Cache::class);
+	}
+
+	public function testTransientWhenBindsAsTransientWhenConditionIsTrue(): void
+	{
+		$this->container->transientWhen(Cache::class, true, FileCache::class);
+
+		$this->assertNotSame(
+			$this->container->get(Cache::class),
+			$this->container->get(Cache::class)
+		);
+	}
+
+	public function testTransientWhenBindsNothingWhenConditionIsFalse(): void
+	{
+		$this->container->transientWhen(Cache::class, false, FileCache::class);
+
+		$this->expectException(NotFoundException::class);
+
+		$this->container->get(Cache::class);
+	}
+
+	public function testSingletonWhenEvaluatesAClosureConditionWithTheContainer(): void
+	{
+		$this->container->singleton(Cache::class, FileCache::class);
+
+		$this->container->singletonWhen(
+			NullCache::class,
+			fn (ServiceContainer $container): bool => $container->get(Cache::class) instanceof Cache
+		);
+
+		$this->assertSame(
+			$this->container->get(NullCache::class),
+			$this->container->get(NullCache::class)
+		);
+	}
+
+	public function testSingletonWhenEvaluatesAnArrayCallableConditionWithAutowiring(): void
+	{
+		$this->container->singleton(Cache::class, FileCache::class);
+
+		$this->container->singletonWhen(
+			NullCache::class,
+			[CacheAvailability::class, 'cacheIsAvailable']
+		);
+
+		$this->assertSame(
+			$this->container->get(NullCache::class),
+			$this->container->get(NullCache::class)
+		);
+	}
+
+	public function testSingletonWhenAttributeSharesInstanceWhenConditionIsTrue(): void
+	{
+		$this->assertSame(
+			$this->container->get(SingletonWhenTrueCache::class),
+			$this->container->get(SingletonWhenTrueCache::class)
+		);
+	}
+
+	public function testSingletonWhenAttributeDoesNotShareInstanceWhenConditionIsFalse(): void
+	{
+		$this->assertNotSame(
+			$this->container->get(SingletonWhenFalseCache::class),
+			$this->container->get(SingletonWhenFalseCache::class)
 		);
 	}
 

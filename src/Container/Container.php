@@ -38,6 +38,18 @@ interface Container extends ServiceResolver
 	public function singletonIf(string $abstract, mixed $concrete = null): void;
 
 	/**
+	 * Register a singleton service only if the given condition evaluates
+	 * truthy. A bool is used as-is; a Closure is invoked with the container;
+	 * any other callable is run through `call()` so it is autowired like any
+	 * other container callback. Nothing is bound when the condition is falsy.
+	 */
+	public function singletonWhen(
+		string $abstract,
+		Closure|string|array|bool $condition,
+		mixed $concrete = null
+	): void;
+
+	/**
 	 * Register a transient service (new instance each time).
 	 */
 	public function transient(string $abstract, mixed $concrete = null): void;
@@ -48,6 +60,17 @@ interface Container extends ServiceResolver
 	 * is left in place.
 	 */
 	public function transientIf(string $abstract, mixed $concrete = null): void;
+
+	/**
+	 * Register a transient service only if the given condition evaluates
+	 * truthy. See `singletonWhen()` for how the condition is evaluated.
+	 * Nothing is bound when the condition is falsy.
+	 */
+	public function transientWhen(
+		string $abstract,
+		Closure|string|array|bool $condition,
+		mixed $concrete = null
+	): void;
 
 	/**
 	 * Register an existing value as a singleton. The value is stored and

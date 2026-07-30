@@ -11,8 +11,8 @@ A lightweight, modern dependency injection framework for WordPress plugins and t
 
 - **Autowiring container** — resolves constructor dependencies by type, including union and intersection types.
 - **Declarative service providers** — describe bindings, aliases, tags, and bootables with simple class constants; drop to code only when you need it.
-- **Attribute-driven injection** — `#[Get]`, `#[Defer]`, `#[Tagged]`, `#[TaggedWith]`, `#[DeferTagged]`, `#[DeferTaggedWith]`, `#[TaggedAbstracts]`, `#[TaggedAbstractsWith]`, `#[Build]`, `#[Param]`, `#[NoAutowire]`, `#[Singleton]`, and `#[Tag]` configure resolution right at the point of use.
-- **Flexible lifetimes** — singletons, transients, pre-built instances, aliases, and "register only if missing" defaults that extensions can override.
+- **Attribute-driven injection** — `#[Get]`, `#[Defer]`, `#[Tagged]`, `#[TaggedWith]`, `#[DeferTagged]`, `#[DeferTaggedWith]`, `#[TaggedAbstracts]`, `#[TaggedAbstractsWith]`, `#[Build]`, `#[Param]`, `#[NoAutowire]`, `#[Singleton]`, `#[SingletonWhen]`, and `#[Tag]` configure resolution right at the point of use.
+- **Flexible lifetimes** — singletons, transients, pre-built instances, aliases, "register only if missing" defaults that extensions can override, and conditional bindings that register only when a runtime check passes.
 - **Contextual bindings** — give one consumer a different value or implementation than the rest of the app, by parameter name or by type.
 - **Named parameters** — set container-backed scalar or array values by name and inject them explicitly with `#[Param]`.
 - **Tagging** — group related services under a label and resolve them together, eagerly or lazily, keyed by a per-member attribute, and optionally constrained to a common contract.
@@ -257,6 +257,20 @@ $container->singletonIf(Logger::class, NullLogger::class);
 $container->transientIf(RequestContext::class);
 ```
 
+The `*When` variants register a binding **only if the given condition evaluates truthy**, and register nothing at all otherwise — unlike `*If`, they don't guard against overwriting an existing binding:
+
+```php
+$container->singletonWhen(
+    Gateway::class,
+    fn (Container $c): bool => $c->get(Config::class)->get('features.stripe'),
+    StripeGateway::class
+);
+
+$container->transientWhen(RequestContext::class, ! wp_doing_cron());
+```
+
+A condition is a `bool`, a `Closure` invoked with the container, or any other callable — run through `call()` so it's autowired like any other container callback.
+
 Re-binding an identifier with `singleton()`/`transient()` replaces any existing binding and clears its cached instance, so the replacement takes effect on the next resolution.
 
 ### Resolving services
@@ -307,6 +321,15 @@ Mark a class `#[Singleton]` to have the container share a single instance whenev
 use X3P0\Framework\Container\Attributes\Singleton;
 
 #[Singleton]
+final class FileCache implements Cache {}
+```
+
+Use `#[SingletonWhen]` instead when the shared lifetime should only apply conditionally — it takes the same kind of condition as `singletonWhen()`:
+
+```php
+use X3P0\Framework\Container\Attributes\SingletonWhen;
+
+#[SingletonWhen([FeatureFlags::class, 'cacheIsShared'])]
 final class FileCache implements Cache {}
 ```
 
@@ -370,6 +393,7 @@ final class Dashboard
 | `#[Param($name)]`                   | parameter | a container-backed named parameter value set via `setParam()`               |
 | `#[NoAutowire]`                     | parameter | nothing — skips autowiring so the declared default (or `null`) is kept      |
 | `#[Singleton]`                      | class     | opts an autowired class into a shared lifetime                              |
+| `#[SingletonWhen($condition)]`      | class     | opts an autowired class into a shared lifetime when `$condition` is truthy  |
 | `#[Tag($tag, $attributes = [])]`    | class     | declares the class's own tag membership, applied via `tagFromAttributes()`  |
 
 You can build your own by implementing `ContextualAttribute`:
