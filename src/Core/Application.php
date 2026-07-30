@@ -15,7 +15,7 @@ namespace X3P0\Framework\Core;
 
 use X3P0\Framework\Container\Container;
 use X3P0\Framework\Container\ContainerException;
-use X3P0\Framework\Container\InstanceResolver;
+use X3P0\Framework\Container\ServiceResolver;
 use X3P0\Framework\Contracts\Bootable;
 
 /**
@@ -87,7 +87,7 @@ abstract class Application implements Bootable
 	protected function registerDefaultBindings(): void
 	{
 		$this->container->instance(Container::class, $this->container);
-		$this->container->alias(InstanceResolver::class, Container::class);
+		$this->container->alias(ServiceResolver::class, Container::class);
 	}
 
 	/**

@@ -23,7 +23,7 @@ use UnitEnum;
  * tagging, deferred resolution, and lifecycle hooks (`resolving()`,
  * `decorate()`) for observing and decorating resolved services.
  */
-interface Container extends InstanceResolver
+interface Container extends ServiceResolver
 {
 	/**
 	 * Register a singleton service (cached instance).
@@ -145,7 +145,7 @@ interface Container extends InstanceResolver
 	 * build, so a resolved singleton is only observed the first time it is
 	 * created.
 	 *
-	 * @param Closure(object, InstanceResolver): void $callback
+	 * @param Closure(object, ServiceResolver): void $callback
 	 */
 	public function resolving(string $abstract, Closure $callback): void;
 
@@ -160,7 +160,7 @@ interface Container extends InstanceResolver
 	 * resolved or registered, the decorator is applied to the stored instance
 	 * immediately.
 	 *
-	 * @param Closure(object, InstanceResolver): object $closure
+	 * @param Closure(object, ServiceResolver): object $closure
 	 */
 	public function decorate(string $abstract, Closure $closure): void;
 

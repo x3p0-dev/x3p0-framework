@@ -17,7 +17,7 @@ use Attribute;
 use X3P0\Framework\Container\Container;
 
 /**
- * Builds a fresh, unshared service, mirroring `InstanceResolver::build()`. The
+ * Builds a fresh, unshared service, mirroring `ServiceResolver::build()`. The
  * built instance bypasses any cached singleton — the shared instance (if any)
  * is left in place and a newly built one is injected. Use it to give a single
  * consumer its own private copy of a service, optionally configured with inline

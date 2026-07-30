@@ -1,7 +1,7 @@
 <?php
 
 /**
- * Instance resolver interface.
+ * Service resolver interface.
  *
  * @author    Justin Tadlock <justintadlock@gmail.com>
  * @copyright Copyright (c) 2025, Justin Tadlock
@@ -20,7 +20,7 @@ namespace X3P0\Framework\Container;
  * The container itself implements this contract, so any consumer that only
  * needs to resolve can type-hint the resolver instead of the whole container.
  */
-interface InstanceResolver
+interface ServiceResolver
 {
 	/**
 	 * Resolve a class from the container, optionally overriding constructor

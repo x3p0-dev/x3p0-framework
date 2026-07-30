@@ -822,7 +822,7 @@ final class ServiceContainer implements Container
 
 	/**
 	 * Instantiate the given concrete. A closure concrete is treated as a
-	 * factory and invoked as `fn(InstanceResolver $resolver, array
+	 * factory and invoked as `fn(ServiceResolver $resolver, array
 	 * $parameters): object`; a class-name concrete is reflected and
 	 * instantiated with its autowired dependencies.
 	 *
