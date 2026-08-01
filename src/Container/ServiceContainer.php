@@ -74,22 +74,13 @@ final class ServiceContainer implements Container
 	private array $buildStack = [];
 
 	/**
-	 * Memoizes whether a concrete class declares the `#[Singleton]` attribute
-	 * so the class is only reflected for it once.
+	 * Memoizes attribute instances read off a reflected class or parameter,
+	 * keyed by target, attribute class, and flags, so the same combination
+	 * is never reflected twice.
 	 *
-	 * @var array<string, bool>
+	 * @var array<string, list<object>>
 	 */
-	private array $singletonAttributeCache = [];
-
-	/**
-	 * Memoizes a concrete class's `#[SingletonWhen]` condition (or `null` if
-	 * it declares none) so the class is only reflected for it once. The
-	 * condition itself is re-evaluated on every check, since it may depend on
-	 * state that changes between resolutions.
-	 *
-	 * @var array<string, Closure|string|array|bool|null>
-	 */
-	private array $singletonWhenCache = [];
+	private array $attributeCache = [];
 
 	/**
 	 * Memoizes reflected classes so a concrete is only reflected once, no
@@ -433,10 +424,7 @@ final class ServiceContainer implements Container
 	 */
 	public function tagFromAttributes(string $class): void
 	{
-		foreach ($this->reflectClass($class)->getAttributes(Tag::class) as $attribute) {
-			/** @var Tag $tag */
-			$tag = $attribute->newInstance();
-
+		foreach ($this->attributesFor($this->reflectClass($class), Tag::class) as $tag) {
 			$this->tags->tag($class, $tag->tag(), $tag->attributes());
 		}
 	}
@@ -684,16 +672,15 @@ final class ServiceContainer implements Container
 			return false;
 		}
 
-		return $this->singletonAttributeCache[$concrete] ??=
-			$this->reflectClass($concrete)->getAttributes(Singleton::class) !== [];
+		return $this->attributesFor($this->reflectClass($concrete), Singleton::class) !== [];
 	}
 
 	/**
 	 * Determine whether a concrete class opts into singleton lifetime via a
 	 * `#[SingletonWhen]` attribute whose condition currently evaluates
-	 * truthy. The attribute's presence (and its condition) is memoized per
-	 * class name to avoid reflecting the same class more than once, but the
-	 * condition itself is evaluated fresh on every call.
+	 * truthy. The attribute's presence is memoized per class name to avoid
+	 * reflecting the same class more than once, but the condition itself is
+	 * evaluated fresh on every call.
 	 *
 	 * @throws ReflectionException|ContainerException
 	 */
@@ -703,17 +690,9 @@ final class ServiceContainer implements Container
 			return false;
 		}
 
-		if (! array_key_exists($concrete, $this->singletonWhenCache)) {
-			$attributes = $this->reflectClass($concrete)->getAttributes(SingletonWhen::class);
+		$attributes = $this->attributesFor($this->reflectClass($concrete), SingletonWhen::class);
 
-			$this->singletonWhenCache[$concrete] = $attributes === []
-				? null
-				: $attributes[0]->newInstance()->condition;
-		}
-
-		$condition = $this->singletonWhenCache[$concrete];
-
-		return $condition !== null && $this->conditionIsTrue($condition);
+		return $attributes !== [] && $this->conditionIsTrue($attributes[0]->condition);
 	}
 
 	/**
@@ -747,6 +726,51 @@ final class ServiceContainer implements Container
 	private function reflectClass(string $class): ReflectionClass
 	{
 		return $this->reflectionCache[$class] ??= new ReflectionClass($class);
+	}
+
+	/**
+	 * Returns every instance of `$attributeClass` declared for `$target`,
+	 * reflecting once and reusing the result on every later call for the
+	 * same target, attribute class, and flags. `$flags` mirrors
+	 * `ReflectionClass::getAttributes()` — pass `ReflectionAttribute::IS_INSTANCEOF`
+	 * to match subclasses instead of requiring the exact class.
+	 *
+	 * @template T of object
+	 * @param    class-string<T> $attributeClass
+	 * @return   list<T>
+	 */
+	private function attributesFor(
+		ReflectionClass|ReflectionParameter $target,
+		string $attributeClass,
+		int $flags = 0
+	): array {
+		$key = "{$this->identifyTarget($target)}|{$attributeClass}|{$flags}";
+
+		return $this->attributeCache[$key] ??= array_map(
+			static fn (ReflectionAttribute $attribute): object => $attribute->newInstance(),
+			$target->getAttributes($attributeClass, $flags)
+		);
+	}
+
+	/**
+	 * A stable string identity for a reflected class or parameter, used to
+	 * key the attribute cache. A parameter is identified by its declaring
+	 * function (or method) and position, since two parameters can share a
+	 * name across different consumers.
+	 */
+	private function identifyTarget(ReflectionClass|ReflectionParameter $target): string
+	{
+		if ($target instanceof ReflectionClass) {
+			return $target->getName();
+		}
+
+		$function = $target->getDeclaringFunction();
+
+		$owner = $function instanceof ReflectionMethod
+			? "{$function->class}::{$function->getName()}"
+			: $function->getName();
+
+		return "{$owner}(\${$target->getName()}:{$target->getPosition()})";
 	}
 
 	/**
@@ -957,20 +981,21 @@ final class ServiceContainer implements Container
 		// deferring to whatever fallback the signature allows: the
 		// parameter's declared default, `null` when it is nullable, or
 		// failure when it has neither.
-		if ($param->getAttributes(NoAutowire::class) !== []) {
+		if ($this->attributesFor($param, NoAutowire::class) !== []) {
 			return $this->resolveFallback($param);
 		}
 
 		// A contextual attribute resolves its own value and takes
 		// precedence over type-based autowiring.
-		$contextual = $param->getAttributes(
+		$contextual = $this->attributesFor(
+			$param,
 			ContextualAttribute::class,
 			ReflectionAttribute::IS_INSTANCEOF
 		);
 
 		if ($contextual !== []) {
 			try {
-				return $contextual[0]->newInstance()->resolve($this);
+				return $contextual[0]->resolve($this);
 			} catch (NotFoundException $e) {
 				if ($this->parameterHasFallback($param)) {
 					return $this->resolveFallback($param);
