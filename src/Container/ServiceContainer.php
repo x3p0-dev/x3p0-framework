@@ -53,11 +53,6 @@ final class ServiceContainer implements Container
 	protected array $instances = [];
 
 	/**
-	 * Stores tag membership, per-member attributes, and per-tag contracts.
-	 */
-	private TagRegistry $tags;
-
-	/**
 	 * Maps an alias to the abstract it points at. Aliases are followed
 	 * transitively when an identifier is resolved.
 	 *
@@ -126,13 +121,10 @@ final class ServiceContainer implements Container
 	protected array $params = [];
 
 	/**
-	 * Accepts a tag registry, or constructs a default one when none is
-	 * given.
+	 * Stores tag membership, per-member attributes, and per-tag contracts.
 	 */
-	public function __construct(?TagRegistry $tags = null)
-	{
-		$this->tags = $tags ?? new TagRegistry();
-	}
+	public function __construct(private readonly TagRegistry $tags = new TagRegistry())
+	{}
 
 	/**
 	 * @inheritDoc
