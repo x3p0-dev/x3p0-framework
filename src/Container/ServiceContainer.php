@@ -53,6 +53,29 @@ final class ServiceContainer implements Container
 	protected array $instances = [];
 
 	/**
+	 * Maps tag names to the list of abstracts assigned to them.
+	 *
+	 * @var array<string, array<string>>
+	 */
+	protected array $tags = [];
+
+	/**
+	 * Maps a tag name and abstract to the attributes it was tagged with.
+	 *
+	 * @var array<string, array<string, array<string, mixed>>>
+	 */
+	protected array $tagAttributes = [];
+
+	/**
+	 * Maps a tag name to the abstract every member must be a concrete class
+	 * of, set via `setTagContract()`. Tags without a contract are absent
+	 * from this map.
+	 *
+	 * @var array<string, class-string>
+	 */
+	protected array $tagContracts = [];
+
+	/**
 	 * Maps an alias to the abstract it points at. Aliases are followed
 	 * transitively when an identifier is resolved.
 	 *
@@ -119,12 +142,6 @@ final class ServiceContainer implements Container
 	 * @var array<string, array|bool|string|int|float|UnitEnum|null>
 	 */
 	protected array $params = [];
-
-	/**
-	 * Stores tag membership, per-member attributes, and per-tag contracts.
-	 */
-	public function __construct(private readonly TagRegistry $tags = new TagRegistry())
-	{}
 
 	/**
 	 * @inheritDoc
@@ -407,7 +424,24 @@ final class ServiceContainer implements Container
 	 */
 	public function tag(string|array $abstracts, string $tag, array $attributes = []): void
 	{
-		$this->tags->tag($abstracts, $tag, $attributes);
+		$contract = $this->tagContracts[$tag] ?? null;
+
+		foreach ((array) $abstracts as $abstract) {
+			// A typed tag holds concrete implementations of its
+			// contract, so each new member is validated as it is
+			// added rather than deferred to resolution.
+			if ($contract !== null) {
+				$this->assertTagIsConcreteOf($tag, $abstract, $contract);
+			}
+
+			if (! in_array($abstract, $this->tags[$tag] ?? [], true)) {
+				$this->tags[$tag][] = $abstract;
+			}
+
+			if ($attributes !== []) {
+				$this->tagAttributes[$tag][$abstract] = $attributes;
+			}
+		}
 	}
 
 	/**
@@ -417,7 +451,7 @@ final class ServiceContainer implements Container
 	public function tagFromAttributes(string $class): void
 	{
 		foreach ($this->attributesFor($this->reflectClass($class), Tag::class) as $tag) {
-			$this->tags->tag($class, $tag->tag(), $tag->attributes());
+			$this->tag($class, $tag->tag(), $tag->attributes());
 		}
 	}
 
@@ -426,7 +460,61 @@ final class ServiceContainer implements Container
 	 */
 	public function setTagContract(string $tag, string $contract): void
 	{
-		$this->tags->setContract($tag, $contract);
+		// The contract is set once. A later call naming a different
+		// contract for the same tag is a conflict, not a silent override.
+		if (($this->tagContracts[$tag] ?? $contract) !== $contract) {
+			throw new ContainerException(esc_html(sprintf(
+				'Tag "%s" is already typed as "%s"; cannot retype it as "%s".',
+				$tag,
+				$this->tagContracts[$tag],
+				$contract
+			)));
+		}
+
+		$this->tagContracts[$tag] = $contract;
+
+		// Validate members tagged before the contract was declared, so a
+		// mistake surfaces here rather than waiting until resolution.
+		$this->assertTagContract($tag);
+	}
+
+	/**
+	 * Assert that a single abstract is a concrete class of the tag's
+	 * contract, throwing otherwise. Shared by every enforcement point.
+	 *
+	 * @throws ContainerException
+	 */
+	private function assertTagIsConcreteOf(string $tag, string $abstract, string $contract): void
+	{
+		if (! class_exists($abstract) || ! is_a($abstract, $contract, true)) {
+			throw new ContainerException(esc_html(sprintf(
+				'Tag "%s" requires each member to be a concrete class of "%s"; "%s" is not.',
+				$tag,
+				$contract,
+				$abstract
+			)));
+		}
+	}
+
+	/**
+	 * Assert that every member currently assigned to the tag satisfies its
+	 * contract. A no-op for an untyped tag, so it is safe to call from any
+	 * resolution path as a backstop against members tagged before the
+	 * contract was declared.
+	 *
+	 * @throws ContainerException
+	 */
+	private function assertTagContract(string $tag): void
+	{
+		$contract = $this->tagContracts[$tag] ?? null;
+
+		if ($contract === null) {
+			return;
+		}
+
+		foreach ($this->tags[$tag] ?? [] as $abstract) {
+			$this->assertTagIsConcreteOf($tag, $abstract, $contract);
+		}
 	}
 
 	/**
@@ -434,7 +522,18 @@ final class ServiceContainer implements Container
 	 */
 	public function untag(string|array $abstracts, string $tag): void
 	{
-		$this->tags->untag($abstracts, $tag);
+		if (! isset($this->tags[$tag])) {
+			return;
+		}
+
+		$this->tags[$tag] = array_values(array_diff(
+			$this->tags[$tag],
+			(array) $abstracts
+		));
+
+		foreach ((array) $abstracts as $abstract) {
+			unset($this->tagAttributes[$tag][$abstract]);
+		}
 	}
 
 	/**
@@ -443,9 +542,11 @@ final class ServiceContainer implements Container
 	 */
 	public function tagged(string $tag): array
 	{
+		$this->assertTagContract($tag);
+
 		return array_map(
 			fn (string $abstract): mixed => $this->resolve($abstract),
-			$this->tags->abstracts($tag)
+			$this->tags[$tag] ?? []
 		);
 	}
 
@@ -455,10 +556,19 @@ final class ServiceContainer implements Container
 	 */
 	public function taggedWith(string $tag, string $attribute): array
 	{
-		return array_map(
-			fn (string $abstract): mixed => $this->resolve($abstract),
-			$this->tags->abstractsWith($tag, $attribute)
-		);
+		$this->assertTagContract($tag);
+
+		$map = [];
+
+		foreach ($this->tags[$tag] ?? [] as $abstract) {
+			$value = $this->tagAttributes[$tag][$abstract][$attribute] ?? null;
+
+			if ($value !== null) {
+				$map[$value] = $this->resolve($abstract);
+			}
+		}
+
+		return $map;
 	}
 
 	/**
@@ -467,7 +577,9 @@ final class ServiceContainer implements Container
 	 */
 	public function taggedAbstracts(string $tag): array
 	{
-		return $this->tags->abstracts($tag);
+		$this->assertTagContract($tag);
+
+		return $this->tags[$tag] ?? [];
 	}
 
 	/**
@@ -476,7 +588,19 @@ final class ServiceContainer implements Container
 	 */
 	public function taggedAbstractsWith(string $tag, string $attribute): array
 	{
-		return $this->tags->abstractsWith($tag, $attribute);
+		$this->assertTagContract($tag);
+
+		$map = [];
+
+		foreach ($this->tags[$tag] ?? [] as $abstract) {
+			$value = $this->tagAttributes[$tag][$abstract][$attribute] ?? null;
+
+			if ($value !== null) {
+				$map[$value] = $abstract;
+			}
+		}
+
+		return $map;
 	}
 
 	/**
@@ -484,7 +608,7 @@ final class ServiceContainer implements Container
 	 */
 	public function hasTag(string $tag): bool
 	{
-		return $this->tags->has($tag);
+		return ! empty($this->tags[$tag]);
 	}
 
 	/**
